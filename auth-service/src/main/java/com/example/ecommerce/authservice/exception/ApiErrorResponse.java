@@ -12,6 +12,10 @@ public record ApiErrorResponse(
     List<FieldErrorDetail> details
 ) {
 
+    public ApiErrorResponse {
+        details = details == null ? List.of() : List.copyOf(details);
+    }
+
     public record FieldErrorDetail(String field, String message) {
     }
 }

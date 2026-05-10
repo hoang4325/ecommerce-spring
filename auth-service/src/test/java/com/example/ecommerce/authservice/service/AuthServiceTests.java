@@ -3,6 +3,8 @@ package com.example.ecommerce.authservice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -48,7 +51,12 @@ class AuthServiceTests {
         when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
         when(jwtTokenService.issueToken(any(AuthUser.class))).thenReturn("jwt-token");
         when(jwtTokenService.expiresInSeconds()).thenReturn(900L);
-        when(authUserRepository.save(any(AuthUser.class))).thenAnswer(invocation -> {
+        lenient().when(authUserRepository.save(any(AuthUser.class))).thenAnswer(invocation -> {
+            AuthUser saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 7L);
+            return saved;
+        });
+        when(authUserRepository.saveAndFlush(any(AuthUser.class))).thenAnswer(invocation -> {
             AuthUser saved = invocation.getArgument(0);
             ReflectionTestUtils.setField(saved, "id", 7L);
             return saved;
@@ -57,7 +65,7 @@ class AuthServiceTests {
         AuthResponse response = authService.register(request);
 
         ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
-        verify(authUserRepository).save(userCaptor.capture());
+        verify(authUserRepository).saveAndFlush(userCaptor.capture());
         AuthUser savedUser = userCaptor.getValue();
         assertThat(savedUser.getEmail()).isEqualTo("customer@example.com");
         assertThat(savedUser.getPasswordHash()).isEqualTo("encoded-password");
@@ -78,7 +86,51 @@ class AuthServiceTests {
         assertThatThrownBy(() -> authService.register(request))
             .isInstanceOf(DuplicateEmailException.class)
             .hasMessage("Email is already registered");
+        verify(authUserRepository, never()).saveAndFlush(any(AuthUser.class));
         verify(authUserRepository, never()).save(any(AuthUser.class));
+        verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
+    }
+
+    @Test
+    void registerTranslatesDatabaseDuplicateEmailRaceAndDoesNotIssueToken() {
+        RegisterRequest request = new RegisterRequest(" Customer@Example.com ", "password123", "Customer Name");
+        when(authUserRepository.existsByEmailIgnoreCase("customer@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(authUserRepository.saveAndFlush(any(AuthUser.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate email"));
+
+        assertThatThrownBy(() -> authService.register(request))
+            .isInstanceOf(DuplicateEmailException.class)
+            .hasMessage("Email is already registered");
+        verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
+        verify(authUserRepository, never()).save(any(AuthUser.class));
+    }
+
+    @Test
+    void loginForUnknownEmailStillPerformsOnePasswordCheckAndRejects() {
+        LoginRequest request = new LoginRequest("missing@example.com", "password123");
+        when(authUserRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(request))
+            .isInstanceOf(InvalidCredentialsException.class)
+            .hasMessage("Invalid email or password");
+        verify(passwordEncoder).matches(eq("password123"), any());
+        verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
+    }
+
+    @Test
+    void loginForDisabledUserStillPerformsOnePasswordCheckAndRejects() {
+        LoginRequest request = new LoginRequest("customer@example.com", "password123");
+        AuthUser user = AuthUser.create("customer@example.com", "encoded-password", Set.of(Role.USER));
+        ReflectionTestUtils.setField(user, "enabled", false);
+        when(authUserRepository.findByEmailIgnoreCase("customer@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(request))
+            .isInstanceOf(InvalidCredentialsException.class)
+            .hasMessage("Invalid email or password");
+        verify(passwordEncoder).matches(eq("password123"), any());
         verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
     }
 
@@ -119,11 +171,12 @@ class AuthServiceTests {
     void loginRejectsUnknownEmail() {
         LoginRequest request = new LoginRequest("missing@example.com", "password123");
         when(authUserRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))
             .isInstanceOf(InvalidCredentialsException.class)
             .hasMessage("Invalid email or password");
-        verify(passwordEncoder, never()).matches(any(), any());
+        verify(passwordEncoder).matches(eq("password123"), any());
         verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
     }
 }

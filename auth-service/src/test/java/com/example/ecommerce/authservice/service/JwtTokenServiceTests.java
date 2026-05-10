@@ -1,6 +1,7 @@
 package com.example.ecommerce.authservice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.ecommerce.authservice.entity.AuthUser;
 import com.example.ecommerce.authservice.entity.Role;
@@ -39,8 +40,22 @@ class JwtTokenServiceTests {
             .decode(token);
         assertThat(jwt.getSubject()).isEqualTo("42");
         assertThat(jwt.getClaimAsString("email")).isEqualTo("customer@example.com");
-        assertThat(jwt.getClaimAsStringList("roles")).containsExactlyInAnyOrder("USER", "ADMIN");
+        assertThat(jwt.getClaimAsStringList("roles")).containsExactly("ADMIN", "USER");
         assertThat(jwt.getClaimAsString("iss")).isEqualTo(ISSUER);
+    }
+
+    @Test
+    void issueTokenRejectsUserWithoutIdBeforeEncoding() {
+        JwtTokenService jwtTokenService = new JwtTokenService(
+            new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(SECRET.getBytes(StandardCharsets.UTF_8))),
+            ISSUER,
+            EXPIRATION_SECONDS
+        );
+        AuthUser user = AuthUser.create("customer@example.com", "hash", Set.of(Role.USER));
+
+        assertThatThrownBy(() -> jwtTokenService.issueToken(user))
+            .isInstanceOfAny(IllegalArgumentException.class, NullPointerException.class)
+            .hasMessageContaining("id");
     }
 
     @Test

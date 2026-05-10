@@ -7,8 +7,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -21,9 +24,15 @@ class JwtConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(@Value("${security.jwt.secret}") String secret) {
-        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(validatedSecretBytes(secret), "HmacSHA256"))
+    JwtDecoder jwtDecoder(
+        @Value("${security.jwt.secret}") String secret,
+        @Value("${security.jwt.issuer}") String issuer
+    ) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(new SecretKeySpec(validatedSecretBytes(secret), "HmacSHA256"))
             .build();
+        OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefaultWithIssuer(issuer);
+        decoder.setJwtValidator(validator);
+        return decoder;
     }
 
     private byte[] validatedSecretBytes(String secret) {

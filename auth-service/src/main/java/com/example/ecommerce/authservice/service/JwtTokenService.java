@@ -2,6 +2,7 @@ package com.example.ecommerce.authservice.service;
 
 import com.example.ecommerce.authservice.entity.AuthUser;
 import java.time.Instant;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -28,14 +29,15 @@ public class JwtTokenService {
     }
 
     public String issueToken(AuthUser user) {
+        Long userId = Objects.requireNonNull(user.getId(), "user id must not be null");
         Instant issuedAt = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
             .issuer(issuer)
             .issuedAt(issuedAt)
             .expiresAt(issuedAt.plusSeconds(expirationSeconds))
-            .subject(String.valueOf(user.getId()))
+            .subject(String.valueOf(userId))
             .claim("email", user.getEmail())
-            .claim("roles", user.getRoles().stream().map(Enum::name).toList())
+            .claim("roles", user.getRoles().stream().map(Enum::name).sorted().toList())
             .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
 

@@ -11,4 +11,8 @@ public record AuthResponse(
     String email,
     Set<Role> roles
 ) {
+
+    public AuthResponse {
+        roles = roles == null ? Set.of() : Set.copyOf(roles);
+    }
 }
