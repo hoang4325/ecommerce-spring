@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private static final String TOKEN_TYPE = "Bearer";
-    static final String DUMMY_PASSWORD_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhiY1t5FzI3L5LmFY9t7R1pG9p6Yw5U";
+    static final String DUMMY_PASSWORD_HASH = "$2a$10$BA.KkQtu1LhFvRP3LN.lTOHBbZgOmh9VushT5KvF6K.KLp7wlf56.";
 
     private final AuthUserRepository authUserRepository;
     private final PasswordEncoder passwordEncoder;

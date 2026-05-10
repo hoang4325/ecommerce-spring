@@ -3,7 +3,6 @@ package com.example.ecommerce.authservice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +25,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -110,12 +110,12 @@ class AuthServiceTests {
     void loginForUnknownEmailStillPerformsOnePasswordCheckAndRejects() {
         LoginRequest request = new LoginRequest("missing@example.com", "password123");
         when(authUserRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
+        when(passwordEncoder.matches("password123", AuthService.DUMMY_PASSWORD_HASH)).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))
             .isInstanceOf(InvalidCredentialsException.class)
             .hasMessage("Invalid email or password");
-        verify(passwordEncoder).matches(eq("password123"), any());
+        verify(passwordEncoder).matches("password123", AuthService.DUMMY_PASSWORD_HASH);
         verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
     }
 
@@ -125,13 +125,21 @@ class AuthServiceTests {
         AuthUser user = AuthUser.create("customer@example.com", "encoded-password", Set.of(Role.USER));
         ReflectionTestUtils.setField(user, "enabled", false);
         when(authUserRepository.findByEmailIgnoreCase("customer@example.com")).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
+        when(passwordEncoder.matches("password123", AuthService.DUMMY_PASSWORD_HASH)).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))
             .isInstanceOf(InvalidCredentialsException.class)
             .hasMessage("Invalid email or password");
-        verify(passwordEncoder).matches(eq("password123"), any());
+        verify(passwordEncoder).matches("password123", AuthService.DUMMY_PASSWORD_HASH);
         verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
+    }
+
+    @Test
+    void dummyPasswordHashIsValidBCryptHash() {
+        assertThat(AuthService.DUMMY_PASSWORD_HASH)
+            .hasSize(60)
+            .matches("^\\$2[aby]\\$\\d{2}\\$[./A-Za-z0-9]{53}$");
+        assertThat(new BCryptPasswordEncoder().matches("dummy-password", AuthService.DUMMY_PASSWORD_HASH)).isTrue();
     }
 
     @Test
@@ -171,12 +179,12 @@ class AuthServiceTests {
     void loginRejectsUnknownEmail() {
         LoginRequest request = new LoginRequest("missing@example.com", "password123");
         when(authUserRepository.findByEmailIgnoreCase("missing@example.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.matches(eq("password123"), any())).thenReturn(false);
+        when(passwordEncoder.matches("password123", AuthService.DUMMY_PASSWORD_HASH)).thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request))
             .isInstanceOf(InvalidCredentialsException.class)
             .hasMessage("Invalid email or password");
-        verify(passwordEncoder).matches(eq("password123"), any());
+        verify(passwordEncoder).matches("password123", AuthService.DUMMY_PASSWORD_HASH);
         verify(jwtTokenService, never()).issueToken(any(AuthUser.class));
     }
 }
