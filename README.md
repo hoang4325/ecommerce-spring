@@ -109,10 +109,14 @@ docker compose up --build postgres eureka-server auth-service api-gateway
 
 Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, and the Auth Service is published on `http://localhost:8081`.
 
+PostgreSQL is bound to `127.0.0.1:5432` for local development. The bundled `ecommerce` credentials, JWT secret, and database port exposure are for local development only.
+
+Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE` appears in the Eureka dashboard.
+
 Register through the gateway:
 
 ```powershell
-curl -X POST http://localhost:8080/api/auth/register `
+curl.exe -X POST http://localhost:8080/api/auth/register `
   -H "Content-Type: application/json" `
   -d '{"email":"customer@example.com","password":"password123","fullName":"Example Customer"}'
 ```
@@ -120,7 +124,7 @@ curl -X POST http://localhost:8080/api/auth/register `
 Log in through the gateway:
 
 ```powershell
-curl -X POST http://localhost:8080/api/auth/login `
+curl.exe -X POST http://localhost:8080/api/auth/login `
   -H "Content-Type: application/json" `
   -d '{"email":"customer@example.com","password":"password123"}'
 ```
