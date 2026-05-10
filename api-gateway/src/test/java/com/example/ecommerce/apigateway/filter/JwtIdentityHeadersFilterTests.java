@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.NettyRoutingFilter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -23,6 +24,11 @@ import reactor.core.publisher.Mono;
 class JwtIdentityHeadersFilterTests {
 
     private final JwtIdentityHeadersFilter filter = new JwtIdentityHeadersFilter();
+
+    @Test
+    void runsBeforeNettyRoutingFilter() {
+        assertThat(filter.getOrder()).isLessThan(NettyRoutingFilter.ORDER);
+    }
 
     @Test
     void removesSpoofedIdentityHeadersWhenNoJwtIsPresent() {

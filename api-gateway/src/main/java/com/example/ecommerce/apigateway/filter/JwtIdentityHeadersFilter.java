@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.filter.NettyRoutingFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.Authentication;
@@ -42,7 +43,7 @@ public class JwtIdentityHeadersFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE;
+        return NettyRoutingFilter.ORDER - 1;
     }
 
     private ServerHttpRequest.Builder addIdentityHeaders(
