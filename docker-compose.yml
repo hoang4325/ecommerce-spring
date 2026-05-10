@@ -6,3 +6,16 @@ services:
     container_name: ecommerce-eureka-server
     ports:
       - "8761:8761"
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: ecommerce-api-gateway
+    depends_on:
+      - eureka-server
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: "01234567890123456789012345678901"
+    ports:
+      - "8080:8080"

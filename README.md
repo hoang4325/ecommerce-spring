@@ -4,7 +4,7 @@ Java Spring Boot microservices e-commerce system.
 
 ## Current Milestone
 
-The repository currently contains the Maven parent project and `eureka-server`.
+The repository currently contains the Maven parent project, `eureka-server`, and `api-gateway`.
 
 ## Stack
 
@@ -14,6 +14,7 @@ The repository currently contains the Maven parent project and `eureka-server`.
 - Maven
 - Docker Compose
 - Eureka Server
+- Spring Cloud Gateway
 
 ## Prerequisites
 
@@ -25,12 +26,14 @@ The repository currently contains the Maven parent project and `eureka-server`.
 
 ```powershell
 mvn -pl eureka-server -am clean package
+mvn -pl api-gateway -am clean package
 ```
 
 ## Test
 
 ```powershell
 mvn -pl eureka-server -am test
+mvn -pl api-gateway -am test
 ```
 
 ## Run Eureka Locally
@@ -51,8 +54,24 @@ Health endpoint:
 http://localhost:8761/actuator/health
 ```
 
-## Run Eureka with Docker Compose
+## Run API Gateway Locally
 
 ```powershell
-docker compose up --build eureka-server
+$env:JWT_SECRET="01234567890123456789012345678901"
+$env:EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://localhost:8761/eureka/"
+mvn -pl api-gateway spring-boot:run
 ```
+
+API Gateway health endpoint:
+
+```text
+http://localhost:8080/actuator/health
+```
+
+## Run with Docker Compose
+
+```powershell
+docker compose up --build eureka-server api-gateway
+```
+
+Eureka is published on `http://localhost:8761` and the API Gateway is published on `http://localhost:8080`.
