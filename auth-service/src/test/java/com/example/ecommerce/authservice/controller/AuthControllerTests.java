@@ -1,11 +1,15 @@
 package com.example.ecommerce.authservice.controller;
 
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -104,6 +108,21 @@ class AuthControllerTests {
     }
 
     @Test
+    void registerInvalidRequestReturnsDeterministicallySortedFieldDetails() throws Exception {
+        RegisterRequest request = new RegisterRequest("not-an-email", "short", "");
+
+        mockMvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.details[0].field").value("email"))
+            .andExpect(jsonPath("$.details[1].field").value("fullName"))
+            .andExpect(jsonPath("$.details[2].field").value("password"));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
     void registerOverBcryptByteLimitPasswordReturnsBadRequestFieldDetail() throws Exception {
         RegisterRequest request = new RegisterRequest("customer@example.com", "a".repeat(73), "Customer Name");
 
@@ -151,6 +170,59 @@ class AuthControllerTests {
             .andExpect(jsonPath("$.message").value("Invalid email or password"))
             .andExpect(jsonPath("$.path").value("/api/auth/login"))
             .andExpect(jsonPath("$.details").value(empty()));
+    }
+
+    @Test
+    void malformedJsonReturnsBadRequestErrorResponse() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message", is(not(emptyString()))))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void missingBodyReturnsBadRequestErrorResponse() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message", is(not(emptyString()))))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void unsupportedContentTypeReturnsUnsupportedMediaTypeErrorResponse() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("email=customer@example.com&password=password123"))
+            .andExpect(status().isUnsupportedMediaType())
+            .andExpect(jsonPath("$.status").value(415))
+            .andExpect(jsonPath("$.error").value("Unsupported Media Type"))
+            .andExpect(jsonPath("$.message", is(not(emptyString()))))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void unsupportedMethodReturnsMethodNotAllowedErrorResponse() throws Exception {
+        mockMvc.perform(get("/api/auth/login"))
+            .andExpect(status().isMethodNotAllowed())
+            .andExpect(jsonPath("$.status").value(405))
+            .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+            .andExpect(jsonPath("$.message", is(not(emptyString()))))
+            .andExpect(jsonPath("$.path").value("/api/auth/login"));
+
+        verifyNoInteractions(authService);
     }
 
     @Test
