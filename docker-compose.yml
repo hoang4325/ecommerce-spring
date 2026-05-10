@@ -1,0 +1,8 @@
+services:
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: ecommerce-eureka-server
+    ports:
+      - "8761:8761"
