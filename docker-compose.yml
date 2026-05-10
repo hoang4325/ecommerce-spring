@@ -1,4 +1,16 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ecommerce-postgres
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   eureka-server:
     build:
       context: .
@@ -6,6 +18,24 @@ services:
     container_name: ecommerce-eureka-server
     ports:
       - "8761:8761"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: ecommerce-auth-service
+    depends_on:
+      - postgres
+      - eureka-server
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: ecommerce
+      SPRING_DATASOURCE_PASSWORD: ecommerce
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: "01234567890123456789012345678901"
+    ports:
+      - "8081:8081"
 
   api-gateway:
     build:
@@ -19,3 +49,6 @@ services:
       JWT_SECRET: "01234567890123456789012345678901"
     ports:
       - "8080:8080"
+
+volumes:
+  postgres-data:
