@@ -1,11 +1,6 @@
 spring:
   application:
     name: auth-service
-  autoconfigure:
-    exclude:
-      - org.springdoc.webmvc.core.configuration.SpringDocWebMvcConfiguration
-      - org.springdoc.webmvc.core.configuration.MultipleOpenApiSupportConfiguration
-      - org.springdoc.webmvc.ui.SwaggerConfig
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/auth_db}
     username: ${SPRING_DATASOURCE_USERNAME:ecommerce}

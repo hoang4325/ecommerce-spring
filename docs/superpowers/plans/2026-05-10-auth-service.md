@@ -6,7 +6,7 @@
 
 **Architecture:** `auth-service` is a standalone Spring Boot MVC service registered with Eureka and routed through `api-gateway` at `/api/auth/**`. It owns credential data in `auth_users`, stores BCrypt password hashes only, issues HS256 JWTs using the same `JWT_SECRET` expected by the gateway, and keeps business logic in the service layer.
 
-**Tech Stack:** Java 21, Maven, Spring Boot 3.5.14, Spring Cloud 2025.0.2, Spring Web MVC, Spring Security, Spring Data JPA, PostgreSQL, H2 for tests, Spring Validation, Springdoc OpenAPI 3.0.3, Eureka Client, Actuator, JUnit 5, Mockito, Docker Compose.
+**Tech Stack:** Java 21, Maven, Spring Boot 3.5.14, Spring Cloud 2025.0.2, Spring Web MVC, Spring Security, Spring Data JPA, PostgreSQL, H2 for tests, Spring Validation, Springdoc OpenAPI 2.8.17, Eureka Client, Actuator, JUnit 5, Mockito, Docker Compose.
 
 ---
 
@@ -29,7 +29,7 @@ This plan does not implement refresh tokens, `user-service`, profile creation ev
 
 ## Reference Notes
 
-- Springdoc `springdoc-openapi-starter-webmvc-ui` version `3.0.3` is available on Maven Central as of 2026-04-11.
+- Springdoc `springdoc-openapi-starter-webmvc-ui` version `2.8.17` is compatible with Spring Boot 3.x; Springdoc 3.x targets Spring Boot 4.x.
 - JWT signing uses Spring Security's `NimbusJwtEncoder` with HS256, matching the gateway's `NimbusReactiveJwtDecoder`.
 - The runtime `JWT_SECRET` must be provided by environment. Tests may use a fixed dummy secret.
 
@@ -175,7 +175,7 @@ Include these dependencies:
 - `spring-boot-starter-oauth2-resource-server`
 - `spring-cloud-starter-netflix-eureka-client`
 - `spring-boot-starter-actuator`
-- `org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3`
+- `org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17`
 - `org.postgresql:postgresql` runtime
 - `com.h2database:h2` test
 - `spring-boot-starter-test` test
