@@ -281,7 +281,7 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:ecommerce}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
@@ -316,7 +316,18 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  jpa:
+    hibernate:
+      ddl-auto: update
 ```
+
+Runtime defaults validate the schema. Local Docker/development runs should activate the `local` profile to allow Hibernate to update the local database schema.
 
 - [ ] **Step 3: Create `Role` enum**
 
@@ -636,6 +647,7 @@ This prevents Maven from failing with missing child module paths inside Docker b
     - `SPRING_DATASOURCE_PASSWORD=ecommerce`
     - `EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/`
     - `JWT_SECRET=01234567890123456789012345678901`
+    - `SPRING_PROFILES_ACTIVE=local`
   - port `8081:8081`
 
 `api-gateway` must keep `JWT_SECRET` with the same local dummy value.

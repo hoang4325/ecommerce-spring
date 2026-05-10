@@ -17,12 +17,25 @@ class JwtConfig {
 
     @Bean
     JwtEncoder jwtEncoder(@Value("${security.jwt.secret}") String secret) {
-        return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(secret.getBytes(StandardCharsets.UTF_8)));
+        return new NimbusJwtEncoder(new ImmutableSecret<SecurityContext>(validatedSecretBytes(secret)));
     }
 
     @Bean
     JwtDecoder jwtDecoder(@Value("${security.jwt.secret}") String secret) {
-        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"))
+        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(validatedSecretBytes(secret), "HmacSHA256"))
             .build();
+    }
+
+    private byte[] validatedSecretBytes(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("security.jwt.secret must be nonblank and at least 32 bytes for HS256");
+        }
+
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length < 32) {
+            throw new IllegalStateException("security.jwt.secret must be at least 32 bytes for HS256");
+        }
+
+        return secretBytes;
     }
 }

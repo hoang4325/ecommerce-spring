@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 
 @Entity
@@ -52,7 +53,7 @@ public class AuthUser {
     }
 
     private AuthUser(String email, String passwordHash, Set<Role> roles) {
-        this.email = email;
+        this.email = normalizeEmail(email);
         this.passwordHash = passwordHash;
         this.roles = new HashSet<>(roles);
     }
@@ -64,13 +65,23 @@ public class AuthUser {
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
+        this.email = normalizeEmail(this.email);
         this.createdAt = now;
         this.updatedAt = now;
     }
 
     @PreUpdate
     void preUpdate() {
+        this.email = normalizeEmail(this.email);
         this.updatedAt = LocalDateTime.now();
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     public Long getId() {

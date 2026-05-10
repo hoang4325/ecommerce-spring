@@ -26,20 +26,21 @@ class AuthUserRepositoryTests {
     private AuthUserRepository authUserRepository;
 
     @Test
-    void findByEmailIgnoreCaseFindsSavedUserWithDifferentEmailCasing() {
-        AuthUser user = AuthUser.create("Customer@Example.com", "hash", Set.of(Role.USER));
+    void savingUserNormalizesEmailAndCanBeFoundIgnoringCase() {
+        AuthUser user = AuthUser.create(" Customer@Example.com ", "hash", Set.of(Role.USER));
         authUserRepository.saveAndFlush(user);
 
-        assertThat(authUserRepository.findByEmailIgnoreCase("customer@example.com"))
+        assertThat(user.getEmail()).isEqualTo("customer@example.com");
+        assertThat(authUserRepository.findByEmailIgnoreCase("CUSTOMER@example.COM"))
             .hasValueSatisfying(found -> {
-                assertThat(found.getEmail()).isEqualTo("Customer@Example.com");
+                assertThat(found.getEmail()).isEqualTo("customer@example.com");
                 assertThat(found.getRoles()).containsExactly(Role.USER);
             });
     }
 
     @Test
-    void uniqueEmailConstraintPreventsDuplicateExactEmailValues() {
-        authUserRepository.saveAndFlush(AuthUser.create("duplicate@example.com", "hash-1", Set.of(Role.USER)));
+    void normalizedUniqueEmailConstraintPreventsDuplicateEmailWithDifferentCasing() {
+        authUserRepository.saveAndFlush(AuthUser.create("Duplicate@Example.com", "hash-1", Set.of(Role.USER)));
 
         AuthUser duplicate = AuthUser.create("duplicate@example.com", "hash-2", Set.of(Role.ADMIN));
 
