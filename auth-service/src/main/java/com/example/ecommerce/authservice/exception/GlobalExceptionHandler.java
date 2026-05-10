@@ -4,8 +4,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -65,7 +67,19 @@ public class GlobalExceptionHandler {
         HttpRequestMethodNotSupportedException ex,
         HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, UNSUPPORTED_METHOD_MESSAGE, request, List.of());
+        ApiErrorResponse response = buildErrorResponse(
+            HttpStatus.METHOD_NOT_ALLOWED,
+            UNSUPPORTED_METHOD_MESSAGE,
+            request,
+            List.of()
+        );
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED);
+        Set<HttpMethod> supportedMethods = ex.getSupportedHttpMethods();
+        if (supportedMethods != null && !supportedMethods.isEmpty()) {
+            builder.allow(supportedMethods.toArray(HttpMethod[]::new));
+        }
+
+        return builder.body(response);
     }
 
     @ExceptionHandler(DuplicateEmailException.class)
@@ -96,7 +110,16 @@ public class GlobalExceptionHandler {
         HttpServletRequest request,
         List<ApiErrorResponse.FieldErrorDetail> details
     ) {
-        ApiErrorResponse response = new ApiErrorResponse(
+        return ResponseEntity.status(status).body(buildErrorResponse(status, message, request, details));
+    }
+
+    private ApiErrorResponse buildErrorResponse(
+        HttpStatus status,
+        String message,
+        HttpServletRequest request,
+        List<ApiErrorResponse.FieldErrorDetail> details
+    ) {
+        return new ApiErrorResponse(
             Instant.now(),
             status.value(),
             status.getReasonPhrase(),
@@ -104,7 +127,5 @@ public class GlobalExceptionHandler {
             request.getRequestURI(),
             details
         );
-
-        return ResponseEntity.status(status).body(response);
     }
 }

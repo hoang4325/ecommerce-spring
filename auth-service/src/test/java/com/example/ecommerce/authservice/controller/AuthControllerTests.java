@@ -2,6 +2,7 @@ package com.example.ecommerce.authservice.controller;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.emptyString;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -217,6 +219,7 @@ class AuthControllerTests {
     void unsupportedMethodReturnsMethodNotAllowedErrorResponse() throws Exception {
         mockMvc.perform(get("/api/auth/login"))
             .andExpect(status().isMethodNotAllowed())
+            .andExpect(header().string("Allow", containsString("POST")))
             .andExpect(jsonPath("$.status").value(405))
             .andExpect(jsonPath("$.error").value("Method Not Allowed"))
             .andExpect(jsonPath("$.message", is(not(emptyString()))))
