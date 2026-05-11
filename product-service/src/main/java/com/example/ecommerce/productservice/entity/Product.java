@@ -38,7 +38,7 @@ public class Product {
     @Column(nullable = false, unique = true)
     private String slug;
 
-    @Column
+    @Column(length = 4000)
     private String description;
 
     @NotNull
@@ -46,7 +46,7 @@ public class Product {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 1000)
     private String imageUrl;
 
     @Column(nullable = false)

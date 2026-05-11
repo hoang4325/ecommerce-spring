@@ -79,6 +79,25 @@ class ProductRepositoryTests {
         assertThat(productRepository.findBySlugAndActiveTrue("morning-roast")).isEmpty();
     }
 
+    @Test
+    void productDescriptionAndImageUrlAllowDtoMaximumLengths() {
+        Category category = categoryRepository.saveAndFlush(Category.create("Coffee", "coffee", "Roasted coffee"));
+        String description = "a".repeat(4000);
+        String imageUrl = "b".repeat(1000);
+
+        Product saved = productRepository.saveAndFlush(Product.create(
+            category,
+            "Morning Roast",
+            "morning-roast",
+            description,
+            BigDecimal.valueOf(12.50),
+            imageUrl
+        ));
+
+        assertThat(saved.getDescription()).hasSize(4000);
+        assertThat(saved.getImageUrl()).hasSize(1000);
+    }
+
     private static Product product(Category category, String name, String slug, String description) {
         return Product.create(category, name, slug, description, BigDecimal.valueOf(12.50), "https://example.test/image.jpg");
     }

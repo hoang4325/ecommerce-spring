@@ -27,7 +27,7 @@ public class Category {
     @Column(nullable = false, unique = true)
     private String slug;
 
-    @Column
+    @Column(length = 1000)
     private String description;
 
     @Column(nullable = false)

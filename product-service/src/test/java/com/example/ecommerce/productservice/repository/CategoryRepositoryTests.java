@@ -45,4 +45,13 @@ class CategoryRepositoryTests {
             .extracting(Category::getName)
             .containsExactly(coffee.getName(), tea.getName());
     }
+
+    @Test
+    void categoryDescriptionAllowsDtoMaximumLength() {
+        String description = "a".repeat(1000);
+
+        Category saved = categoryRepository.saveAndFlush(Category.create("Coffee Gear", "coffee-gear", description));
+
+        assertThat(saved.getDescription()).hasSize(1000);
+    }
 }

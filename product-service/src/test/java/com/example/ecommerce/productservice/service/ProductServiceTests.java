@@ -150,6 +150,22 @@ class ProductServiceTests {
             .containsExactly("pour-over");
     }
 
+    @Test
+    void searchNormalizesBlankKeywordToNullBeforeDelegating() {
+        Category category = categoryWithId(10L, "Coffee", "coffee", true);
+        Product product = productWithId(20L, category, "Pour Over", "pour-over", true);
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(productRepository.searchActiveProducts(null, null, pageable))
+            .thenReturn(new PageImpl<>(List.of(product), pageable, 1));
+
+        Page<ProductResponse> response = productService.search("   ", null, pageable);
+
+        verify(productRepository).searchActiveProducts(null, null, pageable);
+        assertThat(response.getContent())
+            .extracting(ProductResponse::slug)
+            .containsExactly("pour-over");
+    }
+
     private static ProductRequest productRequest(Long categoryId, String name, String slug) {
         return new ProductRequest(
             categoryId,
