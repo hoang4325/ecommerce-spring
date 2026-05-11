@@ -6,6 +6,7 @@ COPY eureka-server/pom.xml eureka-server/pom.xml
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY auth-service/pom.xml auth-service/pom.xml
 COPY product-service/pom.xml product-service/pom.xml
+COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY auth-service/src auth-service/src
 
 RUN mvn -pl auth-service -am package -DskipTests

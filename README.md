@@ -4,7 +4,7 @@ Java Spring Boot microservices e-commerce system.
 
 ## Current Milestone
 
-The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, and `product-service`.
+The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, `product-service`, and `inventory-service`.
 
 ## Stack
 
@@ -34,6 +34,7 @@ mvn -pl eureka-server -am clean package
 mvn -pl api-gateway -am clean package
 mvn -pl auth-service -am clean package
 mvn -pl product-service -am clean package
+mvn -pl inventory-service -am clean package
 ```
 
 ## Test
@@ -43,6 +44,7 @@ mvn -pl eureka-server -am test
 mvn -pl api-gateway -am test
 mvn -pl auth-service -am test
 mvn -pl product-service -am test
+mvn -pl inventory-service -am test
 ```
 
 ## Run Eureka Locally
@@ -128,17 +130,42 @@ Swagger UI:
 http://localhost:8082/swagger-ui.html
 ```
 
+## Run Inventory Service Locally
+
+Start PostgreSQL with an `inventory_db` database, then run:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5434/inventory_db"
+$env:SPRING_DATASOURCE_USERNAME="ecommerce"
+$env:SPRING_DATASOURCE_PASSWORD="ecommerce"
+$env:EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://localhost:8761/eureka/"
+mvn -pl inventory-service spring-boot:run
+```
+
+Inventory Service health endpoint:
+
+```text
+http://localhost:8083/actuator/health
+```
+
+Swagger UI:
+
+```text
+http://localhost:8083/swagger-ui.html
+```
+
 ## Run with Docker Compose
 
 ```powershell
-docker compose up --build postgres product-postgres eureka-server auth-service product-service api-gateway
+docker compose up --build postgres product-postgres inventory-postgres eureka-server auth-service product-service inventory-service api-gateway
 ```
 
-Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, and the Product Service is published on `http://localhost:8082`.
+Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, the Product Service is published on `http://localhost:8082`, and the Inventory Service is published on `http://localhost:8083`.
 
-Auth PostgreSQL is bound to `127.0.0.1:5432` and Product PostgreSQL is bound to `127.0.0.1:5433` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
+Auth PostgreSQL is bound to `127.0.0.1:5432`, Product PostgreSQL is bound to `127.0.0.1:5433`, and Inventory PostgreSQL is bound to `127.0.0.1:5434` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
 
-Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE` and `PRODUCT-SERVICE` appear in the Eureka dashboard.
+Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE`, `PRODUCT-SERVICE`, and `INVENTORY-SERVICE` appear in the Eureka dashboard.
 
 Register through the gateway:
 
@@ -185,5 +212,33 @@ curl.exe -X PUT http://localhost:8080/api/products/1 `
   -d '{"categoryId":1,"name":"Pour Over Kit","slug":"pour-over-kit","description":"Updated starter bundle","price":44.99,"imageUrl":"https://example.com/pour-over-kit.jpg"}'
 
 curl.exe -X DELETE http://localhost:8080/api/products/1 `
+  -H "Authorization: Bearer <token>"
+```
+
+Admin inventory writes through the gateway also require `Authorization: Bearer <token>`. The token must include the `ADMIN` role in its `roles` claim.
+
+```powershell
+curl.exe -X PUT http://localhost:8080/api/inventory/items/1 `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d '{"availableQuantity":25}'
+
+curl.exe -X POST http://localhost:8080/api/inventory/items/1/adjust `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d '{"delta":5}'
+
+curl.exe http://localhost:8080/api/inventory/items/1 `
+  -H "Authorization: Bearer <token>"
+
+curl.exe -X POST http://localhost:8080/api/inventory/reservations `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d '{"orderId":1001,"items":[{"productId":1,"quantity":2}]}'
+
+curl.exe -X POST http://localhost:8080/api/inventory/reservations/1001/release `
+  -H "Authorization: Bearer <token>"
+
+curl.exe -X POST http://localhost:8080/api/inventory/reservations/1001/deduct `
   -H "Authorization: Bearer <token>"
 ```

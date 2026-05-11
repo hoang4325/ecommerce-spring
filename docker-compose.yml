@@ -34,6 +34,23 @@ services:
       retries: 10
       start_period: 10s
 
+  inventory-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: inventory_db
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - inventory-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d inventory_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   eureka-server:
     build:
       context: .
@@ -105,6 +122,34 @@ services:
       retries: 12
       start_period: 30s
 
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: ecommerce-inventory-service
+    depends_on:
+      inventory-postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-postgres:5432/inventory_db
+      SPRING_DATASOURCE_USERNAME: ecommerce
+      SPRING_DATASOURCE_PASSWORD: ecommerce
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS: 5
+      EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS: 15
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   api-gateway:
     build:
       context: .
@@ -116,6 +161,8 @@ services:
       auth-service:
         condition: service_healthy
       product-service:
+        condition: service_healthy
+      inventory-service:
         condition: service_healthy
     restart: on-failure
     environment:
@@ -134,3 +181,4 @@ services:
 volumes:
   postgres-data:
   product-postgres-data:
+  inventory-postgres-data:
