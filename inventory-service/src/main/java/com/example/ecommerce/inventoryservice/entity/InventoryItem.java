@@ -69,23 +69,27 @@ public class InventoryItem {
         if (this.availableQuantity < quantity) {
             throw new IllegalArgumentException("Insufficient available quantity");
         }
-        this.availableQuantity -= quantity;
-        this.reservedQuantity = addExact(
+        int nextAvailableQuantity = this.availableQuantity - quantity;
+        int nextReservedQuantity = addExact(
             this.reservedQuantity,
             quantity,
             "Reserved quantity must not overflow"
         );
+        this.availableQuantity = nextAvailableQuantity;
+        this.reservedQuantity = nextReservedQuantity;
     }
 
     public void release(int quantity) {
         requirePositive(quantity);
         ensureReservedQuantity(quantity);
-        this.reservedQuantity -= quantity;
-        this.availableQuantity = addExact(
+        int nextReservedQuantity = this.reservedQuantity - quantity;
+        int nextAvailableQuantity = addExact(
             this.availableQuantity,
             quantity,
             "Available quantity must not overflow"
         );
+        this.reservedQuantity = nextReservedQuantity;
+        this.availableQuantity = nextAvailableQuantity;
     }
 
     public void deductReserved(int quantity) {

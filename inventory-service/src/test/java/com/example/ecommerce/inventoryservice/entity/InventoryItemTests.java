@@ -35,6 +35,8 @@ class InventoryItemTests {
         assertThatThrownBy(() -> item.reserve(1))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Reserved quantity must not overflow");
+        assertThat(item.getAvailableQuantity()).isEqualTo(1);
+        assertThat(item.getReservedQuantity()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test
@@ -57,6 +59,8 @@ class InventoryItemTests {
         assertThatThrownBy(() -> item.release(1))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Available quantity must not overflow");
+        assertThat(item.getAvailableQuantity()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(item.getReservedQuantity()).isEqualTo(1);
     }
 
     @Test
