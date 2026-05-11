@@ -59,7 +59,7 @@ public class InventoryItem {
     }
 
     public void adjustAvailableQuantity(int delta) {
-        int nextQuantity = this.availableQuantity + delta;
+        int nextQuantity = addExact(this.availableQuantity, delta, "Available quantity must not overflow");
         requireNonNegative(nextQuantity, "Available quantity must not be negative");
         this.availableQuantity = nextQuantity;
     }
@@ -70,14 +70,22 @@ public class InventoryItem {
             throw new IllegalArgumentException("Insufficient available quantity");
         }
         this.availableQuantity -= quantity;
-        this.reservedQuantity += quantity;
+        this.reservedQuantity = addExact(
+            this.reservedQuantity,
+            quantity,
+            "Reserved quantity must not overflow"
+        );
     }
 
     public void release(int quantity) {
         requirePositive(quantity);
         ensureReservedQuantity(quantity);
         this.reservedQuantity -= quantity;
-        this.availableQuantity += quantity;
+        this.availableQuantity = addExact(
+            this.availableQuantity,
+            quantity,
+            "Available quantity must not overflow"
+        );
     }
 
     public void deductReserved(int quantity) {
@@ -113,6 +121,14 @@ public class InventoryItem {
     private static void requirePositive(int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
+        }
+    }
+
+    private static int addExact(int left, int right, String message) {
+        try {
+            return Math.addExact(left, right);
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException(message, ex);
         }
     }
 

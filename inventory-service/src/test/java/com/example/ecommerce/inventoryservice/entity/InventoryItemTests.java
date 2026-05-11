@@ -27,6 +27,17 @@ class InventoryItemTests {
     }
 
     @Test
+    void reserveRejectsReservedQuantityOverflow() {
+        InventoryItem item = InventoryItem.create(10L, Integer.MAX_VALUE);
+        item.reserve(Integer.MAX_VALUE);
+        item.setAvailableQuantity(1);
+
+        assertThatThrownBy(() -> item.reserve(1))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Reserved quantity must not overflow");
+    }
+
+    @Test
     void releaseMovesReservedQuantityBackToAvailableQuantity() {
         InventoryItem item = InventoryItem.create(10L, 8);
         item.reserve(5);
@@ -35,6 +46,17 @@ class InventoryItemTests {
 
         assertThat(item.getAvailableQuantity()).isEqualTo(5);
         assertThat(item.getReservedQuantity()).isEqualTo(3);
+    }
+
+    @Test
+    void releaseRejectsAvailableQuantityOverflow() {
+        InventoryItem item = InventoryItem.create(10L, Integer.MAX_VALUE);
+        item.reserve(1);
+        item.setAvailableQuantity(Integer.MAX_VALUE);
+
+        assertThatThrownBy(() -> item.release(1))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Available quantity must not overflow");
     }
 
     @Test
