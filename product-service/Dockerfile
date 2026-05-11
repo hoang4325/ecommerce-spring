@@ -6,15 +6,15 @@ COPY eureka-server/pom.xml eureka-server/pom.xml
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY auth-service/pom.xml auth-service/pom.xml
 COPY product-service/pom.xml product-service/pom.xml
-COPY auth-service/src auth-service/src
+COPY product-service/src product-service/src
 
-RUN mvn -pl auth-service -am package -DskipTests
+RUN mvn -pl product-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY --from=build /workspace/auth-service/target/*.jar app.jar
+COPY --from=build /workspace/product-service/target/*.jar app.jar
 
-EXPOSE 8081
+EXPOSE 8082
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
