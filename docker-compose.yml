@@ -19,7 +19,6 @@ services:
 
   product-postgres:
     image: postgres:17-alpine
-    container_name: ecommerce-product-postgres
     environment:
       POSTGRES_DB: product_db
       POSTGRES_USER: ecommerce
