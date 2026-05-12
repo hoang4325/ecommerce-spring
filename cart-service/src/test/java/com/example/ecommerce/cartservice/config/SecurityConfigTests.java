@@ -71,6 +71,26 @@ class SecurityConfigTests {
     }
 
     @Test
+    void cartApiWithZeroGatewayUserIdIsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/cart")
+                .header("X-User-Id", "0")
+                .header("X-User-Roles", "USER"))
+            .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(cartService);
+    }
+
+    @Test
+    void cartApiWithNegativeGatewayUserIdIsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/cart")
+                .header("X-User-Id", "-10")
+                .header("X-User-Roles", "USER"))
+            .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(cartService);
+    }
+
+    @Test
     void actuatorHealthSucceedsWithoutGatewayHeaders() throws Exception {
         mockMvc.perform(get("/actuator/health"))
             .andExpect(status().isOk());

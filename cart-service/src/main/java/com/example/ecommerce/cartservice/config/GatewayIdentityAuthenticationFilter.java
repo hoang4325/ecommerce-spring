@@ -45,7 +45,11 @@ class GatewayIdentityAuthenticationFilter extends OncePerRequestFilter {
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     private static Long parseUserId(String header) {
@@ -54,7 +58,8 @@ class GatewayIdentityAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            return Long.valueOf(header.trim());
+            Long userId = Long.valueOf(header.trim());
+            return userId > 0 ? userId : null;
         } catch (NumberFormatException ex) {
             return null;
         }
