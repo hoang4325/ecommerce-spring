@@ -75,6 +75,18 @@ class ProductControllerTests {
     }
 
     @Test
+    void productDetailByIdReturnsProduct() throws Exception {
+        when(productService.getById(20L)).thenReturn(productResponse());
+
+        mockMvc.perform(get("/api/products/id/20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(20))
+            .andExpect(jsonPath("$.name").value("Pour Over"));
+
+        verify(productService).getById(20L);
+    }
+
+    @Test
     void createProductWithValidRequestReturnsCreated() throws Exception {
         ProductRequest request = productRequest(new BigDecimal("19.99"));
         when(productService.create(request)).thenReturn(productResponse());
@@ -103,6 +115,15 @@ class ProductControllerTests {
         doThrow(new ResourceNotFoundException("Product not found")).when(productService).getBySlug("missing");
 
         mockMvc.perform(get("/api/products/missing"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.message").value("Product not found"));
+    }
+
+    @Test
+    void missingProductByIdReturnsNotFound() throws Exception {
+        doThrow(new ResourceNotFoundException("Product not found")).when(productService).getById(99L);
+
+        mockMvc.perform(get("/api/products/id/99"))
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.message").value("Product not found"));
     }

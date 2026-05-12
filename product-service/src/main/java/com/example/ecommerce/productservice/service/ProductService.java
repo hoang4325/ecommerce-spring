@@ -85,6 +85,13 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    public ProductResponse getById(Long id) {
+        return productRepository.findByIdAndActiveTrueAndCategoryActiveTrue(id)
+            .map(this::toResponse)
+            .orElseThrow(() -> new ResourceNotFoundException(PRODUCT_NOT_FOUND_MESSAGE));
+    }
+
+    @Transactional(readOnly = true)
     public Page<ProductResponse> search(String keyword, String categorySlug, Pageable pageable) {
         String normalizedKeyword = StringUtils.hasText(keyword) ? keyword : null;
         String normalizedCategorySlug = StringUtils.hasText(categorySlug) ? slugNormalizer.normalize(categorySlug) : null;

@@ -39,6 +39,11 @@ class ProductController {
         return productService.search(keyword, categorySlug, pageable);
     }
 
+    @GetMapping("/id/{id}")
+    ProductResponse getById(@PathVariable Long id) {
+        return productService.getById(id);
+    }
+
     @GetMapping("/{slug}")
     ProductResponse getBySlug(@PathVariable String slug) {
         return productService.getBySlug(slug);

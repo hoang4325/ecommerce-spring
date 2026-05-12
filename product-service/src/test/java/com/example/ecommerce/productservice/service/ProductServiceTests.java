@@ -134,6 +134,28 @@ class ProductServiceTests {
     }
 
     @Test
+    void getByIdReturnsActiveProductWithActiveCategory() {
+        Category category = categoryWithId(10L, "Coffee", "coffee", true);
+        Product product = productWithId(20L, category, "Pour Over", "pour-over", true);
+        when(productRepository.findByIdAndActiveTrueAndCategoryActiveTrue(20L)).thenReturn(Optional.of(product));
+
+        ProductResponse response = productService.getById(20L);
+
+        assertThat(response.id()).isEqualTo(20L);
+        assertThat(response.name()).isEqualTo("Pour Over");
+        assertThat(response.price()).isEqualByComparingTo("19.99");
+    }
+
+    @Test
+    void getByIdRejectsMissingOrInactiveProduct() {
+        when(productRepository.findByIdAndActiveTrueAndCategoryActiveTrue(20L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.getById(20L))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessage("Product not found");
+    }
+
+    @Test
     void searchNormalizesCategorySlugAndDelegatesPageableQuery() {
         Category category = categoryWithId(10L, "Coffee", "coffee", true);
         Product product = productWithId(20L, category, "Pour Over", "pour-over", true);
