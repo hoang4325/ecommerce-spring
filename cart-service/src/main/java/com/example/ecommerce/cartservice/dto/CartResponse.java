@@ -10,4 +10,8 @@ public record CartResponse(
         CartStatus status,
         List<CartItemResponse> items,
         BigDecimal subtotal) {
+
+    public CartResponse {
+        items = items == null ? List.of() : List.copyOf(items);
+    }
 }
