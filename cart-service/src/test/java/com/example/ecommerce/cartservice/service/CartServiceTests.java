@@ -58,6 +58,27 @@ class CartServiceTests {
     }
 
     @Test
+    void getCurrentCartReturnsExistingActiveCartResponse() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"), 2);
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+
+        CartResponse response = cartService.getCurrentCart(USER_ID);
+
+        assertThat(response.cartId()).isEqualTo(100L);
+        assertThat(response.userId()).isEqualTo(USER_ID);
+        assertThat(response.status()).isEqualTo(CartStatus.ACTIVE);
+        assertThat(response.subtotal()).isEqualByComparingTo("39.98");
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.productId()).isEqualTo(PRODUCT_ID);
+            assertThat(item.productName()).isEqualTo("Pour Over");
+            assertThat(item.unitPrice()).isEqualByComparingTo("19.99");
+            assertThat(item.quantity()).isEqualTo(2);
+            assertThat(item.lineTotal()).isEqualByComparingTo("39.98");
+        });
+    }
+
+    @Test
     void addItemCreatesCartAndStoresProductSnapshot() {
         ProductCatalogItem product = new ProductCatalogItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"));
         when(productCatalogClient.getProduct(PRODUCT_ID)).thenReturn(product);
@@ -136,6 +157,45 @@ class CartServiceTests {
     }
 
     @Test
+    void updateItemRejectsMissingCartWithoutCallingProductCatalog() {
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cartService.updateItem(USER_ID, PRODUCT_ID, new UpdateCartItemRequest(5)))
+            .isInstanceOf(CartItemNotFoundException.class);
+
+        verifyNoInteractions(productCatalogClient);
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemPropagatesProductCatalogUnavailable() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Old Name", new BigDecimal("10.00"), 1);
+        ProductCatalogUnavailableException exception = new ProductCatalogUnavailableException();
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+        when(productCatalogClient.getProduct(PRODUCT_ID)).thenThrow(exception);
+
+        assertThatThrownBy(() -> cartService.updateItem(USER_ID, PRODUCT_ID, new UpdateCartItemRequest(5)))
+            .isSameAs(exception);
+
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void updateItemPropagatesProductNotFound() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Old Name", new BigDecimal("10.00"), 1);
+        ProductNotFoundException exception = new ProductNotFoundException();
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+        when(productCatalogClient.getProduct(PRODUCT_ID)).thenThrow(exception);
+
+        assertThatThrownBy(() -> cartService.updateItem(USER_ID, PRODUCT_ID, new UpdateCartItemRequest(5)))
+            .isSameAs(exception);
+
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
     void removeItemRejectsMissingItem() {
         Cart cart = activeCart(100L);
         when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
@@ -147,12 +207,63 @@ class CartServiceTests {
     }
 
     @Test
+    void removeItemRejectsMissingCart() {
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> cartService.removeItem(USER_ID, PRODUCT_ID))
+            .isInstanceOf(CartItemNotFoundException.class);
+
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void removeItemRemovesExistingItemAndSavesCart() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"), 2);
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(cart)).thenReturn(cart);
+
+        cartService.removeItem(USER_ID, PRODUCT_ID);
+
+        assertThat(cart.getItems()).isEmpty();
+        verify(cartRepository).save(cart);
+    }
+
+    @Test
+    void updateItemDomainInvalidOperationMapsToInvalidCartOperation() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Old Name", new BigDecimal("10.00"), 1);
+        ProductCatalogItem product = new ProductCatalogItem(PRODUCT_ID, "New Name", new BigDecimal("12.50"));
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+        when(productCatalogClient.getProduct(PRODUCT_ID)).thenReturn(product);
+
+        assertThatThrownBy(() -> cartService.updateItem(USER_ID, PRODUCT_ID, new UpdateCartItemRequest(0)))
+            .isInstanceOf(InvalidCartOperationException.class)
+            .hasMessage("Quantity must be positive");
+
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
     void clearCartIsIdempotentWhenNoCartExists() {
         when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.empty());
 
         cartService.clearCart(USER_ID);
 
         verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void clearCartClearsExistingCartAndSaves() {
+        Cart cart = activeCart(100L);
+        cart.addOrIncrementItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"), 2);
+        when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
+        when(cartRepository.save(cart)).thenReturn(cart);
+
+        cartService.clearCart(USER_ID);
+
+        assertThat(cart.getItems()).isEmpty();
+        verify(cartRepository).save(cart);
     }
 
     @Test
