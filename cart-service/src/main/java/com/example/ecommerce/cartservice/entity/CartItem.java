@@ -140,6 +140,9 @@ public class CartItem {
         if (value == null) {
             throw new IllegalArgumentException("Unit price snapshot must not be null");
         }
+        if (value.signum() < 0) {
+            throw new IllegalArgumentException("Unit price snapshot must not be negative");
+        }
     }
 
     private static void requirePositive(int quantity) {

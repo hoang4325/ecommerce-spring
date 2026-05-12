@@ -73,7 +73,7 @@ public class Cart {
             return;
         }
         item.updateSnapshot(productName, unitPrice);
-        item.setQuantity(Math.addExact(item.getQuantity(), quantity));
+        item.setQuantity(addExact(item.getQuantity(), quantity));
     }
 
     public void updateItem(Long productId, String productName, BigDecimal unitPrice, int quantity) {
@@ -95,6 +95,12 @@ public class Cart {
     public void clearItems() {
         ensureActive();
         items.clear();
+    }
+
+    public void checkout() {
+        ensureActive();
+        this.status = CartStatus.CHECKED_OUT;
+        this.activeCartKey = null;
     }
 
     public BigDecimal subtotal() {
@@ -138,6 +144,14 @@ public class Cart {
     private static void requirePositive(int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be positive");
+        }
+    }
+
+    private static int addExact(int left, int right) {
+        try {
+            return Math.addExact(left, right);
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException("Quantity must not overflow", ex);
         }
     }
 

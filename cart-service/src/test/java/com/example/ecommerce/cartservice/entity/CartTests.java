@@ -67,4 +67,36 @@ class CartTests {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Quantity must be positive");
     }
+
+    @Test
+    void checkoutClearsActiveKeyAndRejectsLaterMutation() {
+        Cart cart = Cart.createActive(10L);
+
+        cart.checkout();
+
+        assertThat(cart.getStatus()).isEqualTo(CartStatus.CHECKED_OUT);
+        assertThat(cart.getActiveCartKey()).isNull();
+        assertThatThrownBy(() -> cart.addOrIncrementItem(20L, "Pour Over", new BigDecimal("19.99"), 1))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("Cart is not active");
+    }
+
+    @Test
+    void negativeUnitPriceIsRejected() {
+        Cart cart = Cart.createActive(10L);
+
+        assertThatThrownBy(() -> cart.addOrIncrementItem(20L, "Pour Over", new BigDecimal("-0.01"), 1))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Unit price snapshot must not be negative");
+    }
+
+    @Test
+    void incrementQuantityRejectsOverflow() {
+        Cart cart = Cart.createActive(10L);
+        cart.addOrIncrementItem(20L, "Pour Over", BigDecimal.ZERO, Integer.MAX_VALUE);
+
+        assertThatThrownBy(() -> cart.addOrIncrementItem(20L, "Pour Over", BigDecimal.ZERO, 1))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Quantity must not overflow");
+    }
 }
