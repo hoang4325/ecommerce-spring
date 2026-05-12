@@ -5,6 +5,11 @@ import java.util.List;
 public record GatewayUser(Long userId, String email, List<String> roles) {
 
     public GatewayUser {
-        roles = roles == null ? List.of() : List.copyOf(roles);
+        roles = roles == null
+            ? List.of()
+            : roles.stream()
+                .map(String::trim)
+                .filter(role -> !role.isBlank())
+                .toList();
     }
 }

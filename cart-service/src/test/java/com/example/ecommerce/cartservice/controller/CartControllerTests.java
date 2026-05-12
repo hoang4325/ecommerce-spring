@@ -6,8 +6,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,11 +27,13 @@ import com.example.ecommerce.cartservice.service.CartService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -188,6 +192,67 @@ class CartControllerTests {
                 .principal(stringPrincipal))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.message").value("Missing user identity"));
+    }
+
+    @Test
+    void malformedRequestBodyReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/api/cart/items")
+                .principal(authentication(USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"productId\":20,\"quantity\":"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Malformed or missing request body"));
+    }
+
+    @Test
+    void invalidPathVariableTypeReturnsBadRequest() throws Exception {
+        mockMvc.perform(delete("/api/cart/items/not-a-number")
+                .principal(authentication(USER_ID)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Invalid request"));
+    }
+
+    @Test
+    void unsupportedContentTypeReturnsUnsupportedMediaType() throws Exception {
+        mockMvc.perform(post("/api/cart/items")
+                .principal(authentication(USER_ID))
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("productId=20&quantity=1"))
+            .andExpect(status().isUnsupportedMediaType())
+            .andExpect(jsonPath("$.message").value("Content type is not supported"));
+    }
+
+    @Test
+    void unsupportedMethodReturnsMethodNotAllowedWithAllowHeader() throws Exception {
+        mockMvc.perform(patch("/api/cart/items/{productId}", PRODUCT_ID)
+                .principal(authentication(USER_ID))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new UpdateCartItemRequest(2))))
+            .andExpect(status().isMethodNotAllowed())
+            .andExpect(header().string("Allow", Matchers.allOf(
+                Matchers.containsString("PUT"),
+                Matchers.containsString("DELETE"))))
+            .andExpect(jsonPath("$.message").value("HTTP method is not supported"));
+    }
+
+    @Test
+    void accessDeniedReturnsForbidden() throws Exception {
+        doThrow(new AccessDeniedException("Forbidden")).when(cartService).getCurrentCart(USER_ID);
+
+        mockMvc.perform(get("/api/cart")
+                .principal(authentication(USER_ID)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.message").value("Access is denied"));
+    }
+
+    @Test
+    void unexpectedExceptionReturnsInternalServerError() throws Exception {
+        doThrow(new RuntimeException("Database is on fire")).when(cartService).getCurrentCart(USER_ID);
+
+        mockMvc.perform(get("/api/cart")
+                .principal(authentication(USER_ID)))
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.message").value("Unexpected server error"));
     }
 
     private static Authentication authentication(Long userId) {
