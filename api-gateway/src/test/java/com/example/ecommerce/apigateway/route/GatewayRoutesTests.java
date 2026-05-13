@@ -39,6 +39,7 @@ class GatewayRoutesTests {
                 "inventory-service",
                 "cart-service",
                 "order-service",
+                "order-service-admin",
                 "payment-service",
                 "notification-service"
             );

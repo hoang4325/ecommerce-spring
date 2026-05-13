@@ -8,6 +8,7 @@ COPY auth-service/pom.xml auth-service/pom.xml
 COPY product-service/pom.xml product-service/pom.xml
 COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY cart-service/pom.xml cart-service/pom.xml
+COPY order-service/pom.xml order-service/pom.xml
 COPY auth-service/src auth-service/src
 
 RUN mvn -pl auth-service -am package -DskipTests

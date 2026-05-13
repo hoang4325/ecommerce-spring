@@ -68,6 +68,23 @@ services:
       retries: 10
       start_period: 10s
 
+  order-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+    ports:
+      - "127.0.0.1:5436:5432"
+    volumes:
+      - order-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d order_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   eureka-server:
     build:
       context: .
@@ -198,6 +215,40 @@ services:
       retries: 12
       start_period: 30s
 
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: ecommerce-order-service
+    depends_on:
+      order-postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      cart-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://order-postgres:5432/order_db
+      SPRING_DATASOURCE_USERNAME: ecommerce
+      SPRING_DATASOURCE_PASSWORD: ecommerce
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS: 5
+      EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS: 15
+      CART_SERVICE_BASE_URL: http://cart-service
+      INVENTORY_SERVICE_BASE_URL: http://inventory-service
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   api-gateway:
     build:
       context: .
@@ -213,6 +264,8 @@ services:
       inventory-service:
         condition: service_healthy
       cart-service:
+        condition: service_healthy
+      order-service:
         condition: service_healthy
     restart: on-failure
     environment:
@@ -233,3 +286,4 @@ volumes:
   product-postgres-data:
   inventory-postgres-data:
   cart-postgres-data:
+  order-postgres-data:

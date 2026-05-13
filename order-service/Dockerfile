@@ -3,22 +3,21 @@ WORKDIR /workspace
 
 COPY pom.xml pom.xml
 COPY eureka-server/pom.xml eureka-server/pom.xml
-COPY eureka-server/src eureka-server/src
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY auth-service/pom.xml auth-service/pom.xml
 COPY product-service/pom.xml product-service/pom.xml
 COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY cart-service/pom.xml cart-service/pom.xml
 COPY order-service/pom.xml order-service/pom.xml
-COPY api-gateway/src api-gateway/src
+COPY order-service/src order-service/src
 
-RUN mvn -pl api-gateway -am package -DskipTests
+RUN mvn -pl order-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY --from=build /workspace/api-gateway/target/*.jar app.jar
+COPY --from=build /workspace/order-service/target/*.jar app.jar
 
-EXPOSE 8080
+EXPOSE 8085
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

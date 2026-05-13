@@ -39,10 +39,10 @@ jobs:
 
       - name: Build service Docker images
         run: |
-          docker compose build \
-            eureka-server \
-            api-gateway \
-            auth-service \
-            product-service \
-            inventory-service \
-            cart-service
+          docker compose build eureka-server
+          docker compose build api-gateway
+          docker compose build auth-service
+          docker compose build product-service
+          docker compose build inventory-service
+          docker compose build cart-service
+          docker compose build order-service

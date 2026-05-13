@@ -4,7 +4,7 @@ Java Spring Boot microservices e-commerce system.
 
 ## Current Milestone
 
-The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, `product-service`, `inventory-service`, and `cart-service`.
+The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, `product-service`, `inventory-service`, `cart-service`, and `order-service`.
 
 ## Stack
 
@@ -36,6 +36,7 @@ mvn -pl auth-service -am clean package
 mvn -pl product-service -am clean package
 mvn -pl inventory-service -am clean package
 mvn -pl cart-service -am clean package
+mvn -pl order-service -am clean package
 ```
 
 ## Test
@@ -47,6 +48,7 @@ mvn -pl auth-service -am test
 mvn -pl product-service -am test
 mvn -pl inventory-service -am test
 mvn -pl cart-service -am test
+mvn -pl order-service -am test
 ```
 
 ## Run Eureka Locally
@@ -185,17 +187,47 @@ Swagger UI:
 http://localhost:8084/swagger-ui.html
 ```
 
+## Run Order Service Locally
+
+Start PostgreSQL with an `order_db` database, then run:
+
+Order Service expects `cart-service` and `inventory-service` to be registered in Eureka when using local run mode.
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5436/order_db"
+$env:SPRING_DATASOURCE_USERNAME="ecommerce"
+$env:SPRING_DATASOURCE_PASSWORD="ecommerce"
+$env:EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://localhost:8761/eureka/"
+$env:CART_SERVICE_BASE_URL="http://cart-service"
+$env:INVENTORY_SERVICE_BASE_URL="http://inventory-service"
+mvn -pl order-service spring-boot:run
+```
+
+Order Service health endpoint:
+
+```text
+http://localhost:8085/actuator/health
+```
+
+Swagger UI:
+
+```text
+http://localhost:8085/swagger-ui.html
+```
+
 ## Run with Docker Compose
 
 ```powershell
-docker compose up --build postgres product-postgres inventory-postgres cart-postgres eureka-server auth-service product-service inventory-service cart-service api-gateway
+"eureka-server","api-gateway","auth-service","product-service","inventory-service","cart-service","order-service" | ForEach-Object { docker compose build $_ }
+docker compose up postgres product-postgres inventory-postgres cart-postgres order-postgres eureka-server auth-service product-service inventory-service cart-service order-service api-gateway
 ```
 
-Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, the Product Service is published on `http://localhost:8082`, the Inventory Service is published on `http://localhost:8083`, and the Cart Service is published on `http://localhost:8084`.
+Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, the Product Service is published on `http://localhost:8082`, the Inventory Service is published on `http://localhost:8083`, the Cart Service is published on `http://localhost:8084`, and the Order Service is published on `http://localhost:8085`.
 
-Auth PostgreSQL is bound to `127.0.0.1:5432`, Product PostgreSQL is bound to `127.0.0.1:5433`, Inventory PostgreSQL is bound to `127.0.0.1:5434`, and Cart PostgreSQL is bound to `127.0.0.1:5435` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
+Auth PostgreSQL is bound to `127.0.0.1:5432`, Product PostgreSQL is bound to `127.0.0.1:5433`, Inventory PostgreSQL is bound to `127.0.0.1:5434`, Cart PostgreSQL is bound to `127.0.0.1:5435`, and Order PostgreSQL is bound to `127.0.0.1:5436` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
 
-Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE`, `PRODUCT-SERVICE`, `INVENTORY-SERVICE`, and `CART-SERVICE` appear in the Eureka dashboard.
+Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE`, `PRODUCT-SERVICE`, `INVENTORY-SERVICE`, `CART-SERVICE`, and `ORDER-SERVICE` appear in the Eureka dashboard.
 
 Register through the gateway:
 
@@ -294,4 +326,32 @@ curl.exe -X DELETE http://localhost:8080/api/cart/items/1 `
 
 curl.exe -X DELETE http://localhost:8080/api/cart/items `
   -H "Authorization: Bearer <token>"
+```
+
+Order requests through the gateway require `Authorization: Bearer <token>`. Checkout reads the current user's cart and reserves stock in inventory, so the cart must contain items and inventory must have enough available quantity.
+
+```powershell
+curl.exe -X POST http://localhost:8080/api/orders/checkout `
+  -H "Authorization: Bearer <token>"
+
+curl.exe http://localhost:8080/api/orders `
+  -H "Authorization: Bearer <token>"
+
+curl.exe http://localhost:8080/api/orders/1000 `
+  -H "Authorization: Bearer <token>"
+```
+
+Admin order requests require `Authorization: Bearer <admin-token>`. This MVP supports admin cancellation through the status endpoint.
+
+```powershell
+curl.exe http://localhost:8080/api/admin/orders `
+  -H "Authorization: Bearer <admin-token>"
+
+curl.exe http://localhost:8080/api/admin/orders/1000 `
+  -H "Authorization: Bearer <admin-token>"
+
+curl.exe -X PATCH http://localhost:8080/api/admin/orders/1000/status `
+  -H "Authorization: Bearer <admin-token>" `
+  -H "Content-Type: application/json" `
+  -d '{"status":"CANCELLED","reason":"Customer requested"}'
 ```
