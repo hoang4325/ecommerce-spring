@@ -27,6 +27,10 @@ class SecurityConfig {
                     "/swagger-ui.html",
                     "/swagger-ui/**"
                 ).permitAll()
+                .requestMatchers(
+                    "/api/inventory/reservations",
+                    "/api/inventory/reservations/**"
+                ).hasAnyRole("ADMIN", "SERVICE")
                 .requestMatchers("/api/inventory/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .addFilterBefore(gatewayIdentityAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

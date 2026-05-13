@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -26,24 +27,38 @@ class GatewayIdentityAuthenticationFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
+        try {
+            authenticate(request);
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    private static void authenticate(HttpServletRequest request) {
         String rolesHeader = request.getHeader(ROLES_HEADER);
-
-        if (rolesHeader != null && !rolesHeader.isBlank()) {
-            List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesHeader.split(","))
-                .map(String::trim)
-                .filter(role -> !role.isBlank())
-                .map(GatewayIdentityAuthenticationFilter::toAuthority)
-                .toList();
-
-            if (!authorities.isEmpty()) {
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken("gateway-user", null, authorities);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        if (rolesHeader == null || rolesHeader.isBlank()) {
+            SecurityContextHolder.clearContext();
+            return;
         }
 
-        filterChain.doFilter(request, response);
+        List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesHeader.split(","))
+            .map(String::trim)
+            .filter(role -> !role.isBlank())
+            .map(GatewayIdentityAuthenticationFilter::toAuthority)
+            .toList();
+
+        if (authorities.isEmpty()) {
+            SecurityContextHolder.clearContext();
+            return;
+        }
+
+        UsernamePasswordAuthenticationToken authentication =
+            new UsernamePasswordAuthenticationToken("gateway-user", null, authorities);
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
     }
 
     private static SimpleGrantedAuthority toAuthority(String role) {

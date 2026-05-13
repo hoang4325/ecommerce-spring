@@ -4,13 +4,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.ecommerce.inventoryservice.InventoryServiceApplication;
 import com.example.ecommerce.inventoryservice.dto.InventoryItemResponse;
+import com.example.ecommerce.inventoryservice.dto.StockReservationResultResponse;
 import com.example.ecommerce.inventoryservice.dto.StockLevelRequest;
+import com.example.ecommerce.inventoryservice.entity.ReservationStatus;
 import com.example.ecommerce.inventoryservice.service.InventoryService;
 import com.example.ecommerce.inventoryservice.service.StockReservationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,6 +89,34 @@ class SecurityConfigTests {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.productId").value(10));
+    }
+
+    @Test
+    void reservationEndpointAllowsServiceRole() throws Exception {
+        when(stockReservationService.reserve(any())).thenReturn(
+            new StockReservationResultResponse(1001L, ReservationStatus.RESERVED, List.of())
+        );
+
+        mockMvc.perform(post("/api/inventory/reservations")
+                .header("X-User-Roles", "SERVICE")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "orderId": 1001,
+                      "items": [
+                        { "productId": 10, "quantity": 2 }
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("RESERVED"));
+    }
+
+    @Test
+    void stockManagementEndpointStillRejectsServiceRole() throws Exception {
+        mockMvc.perform(get("/api/inventory/items")
+                .header("X-User-Roles", "SERVICE"))
+            .andExpect(status().isForbidden());
     }
 
     @Test
