@@ -46,10 +46,17 @@ class OrderRepositoryTests {
 
     @Test
     void findsExistingNonTerminalOrderByUserAndCart() {
-        Order pending = repository.saveAndFlush(sampleOrder(10L, 20L));
-        Order cancelled = sampleOrder(10L, 21L);
+        Order cancelled = sampleOrder(10L, 20L);
         cancelled.cancel("Stock failed");
         repository.saveAndFlush(cancelled);
+
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotIn(
+            10L,
+            20L,
+            List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
+        )).isEmpty();
+
+        Order pending = repository.saveAndFlush(sampleOrder(10L, 20L));
 
         assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotIn(
             10L,
@@ -59,11 +66,15 @@ class OrderRepositoryTests {
     }
 
     @Test
-    void filtersByStatusNewestFirst() {
+    void filtersByStatusNewestFirst() throws InterruptedException {
         repository.saveAndFlush(sampleOrder(10L, 20L));
-        Order reserved = sampleOrder(11L, 21L);
-        reserved.markStockReserved();
-        repository.saveAndFlush(reserved);
+        Order olderReserved = sampleOrder(11L, 21L);
+        olderReserved.markStockReserved();
+        repository.saveAndFlush(olderReserved);
+        Thread.sleep(10);
+        Order newerReserved = sampleOrder(12L, 22L);
+        newerReserved.markStockReserved();
+        repository.saveAndFlush(newerReserved);
 
         Page<Order> result = repository.findByStatus(
             OrderStatus.STOCK_RESERVED,
@@ -72,6 +83,8 @@ class OrderRepositoryTests {
 
         assertThat(result.getContent()).extracting(Order::getStatus)
             .containsOnly(OrderStatus.STOCK_RESERVED);
+        assertThat(result.getContent()).extracting(Order::getId)
+            .containsExactly(newerReserved.getId(), olderReserved.getId());
     }
 
     private static Order sampleOrder(Long userId, Long sourceCartId) {
