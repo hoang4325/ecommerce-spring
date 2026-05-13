@@ -3,6 +3,7 @@ package com.example.ecommerce.cartservice.config;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,7 +43,13 @@ class SecurityConfigTests {
     @Test
     void cartApiWithoutGatewayUserIdIsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/cart"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.error").value("Unauthorized"))
+            .andExpect(jsonPath("$.message").value("Missing user identity"))
+            .andExpect(jsonPath("$.path").value("/api/cart"))
+            .andExpect(jsonPath("$.details").isEmpty());
 
         verifyNoInteractions(cartService);
     }
@@ -65,7 +72,13 @@ class SecurityConfigTests {
         mockMvc.perform(get("/api/cart")
                 .header("X-User-Id", "not-a-number")
                 .header("X-User-Roles", "USER"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.error").value("Unauthorized"))
+            .andExpect(jsonPath("$.message").value("Missing user identity"))
+            .andExpect(jsonPath("$.path").value("/api/cart"))
+            .andExpect(jsonPath("$.details").isEmpty());
 
         verifyNoInteractions(cartService);
     }
@@ -75,7 +88,13 @@ class SecurityConfigTests {
         mockMvc.perform(get("/api/cart")
                 .header("X-User-Id", "0")
                 .header("X-User-Roles", "USER"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.error").value("Unauthorized"))
+            .andExpect(jsonPath("$.message").value("Missing user identity"))
+            .andExpect(jsonPath("$.path").value("/api/cart"))
+            .andExpect(jsonPath("$.details").isEmpty());
 
         verifyNoInteractions(cartService);
     }
@@ -85,7 +104,13 @@ class SecurityConfigTests {
         mockMvc.perform(get("/api/cart")
                 .header("X-User-Id", "-10")
                 .header("X-User-Roles", "USER"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.error").value("Unauthorized"))
+            .andExpect(jsonPath("$.message").value("Missing user identity"))
+            .andExpect(jsonPath("$.path").value("/api/cart"))
+            .andExpect(jsonPath("$.details").isEmpty());
 
         verifyNoInteractions(cartService);
     }
@@ -93,6 +118,18 @@ class SecurityConfigTests {
     @Test
     void actuatorHealthSucceedsWithoutGatewayHeaders() throws Exception {
         mockMvc.perform(get("/actuator/health"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void actuatorHealthLivenessSucceedsWithoutGatewayHeaders() throws Exception {
+        mockMvc.perform(get("/actuator/health/liveness"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void actuatorHealthReadinessSucceedsWithoutGatewayHeaders() throws Exception {
+        mockMvc.perform(get("/actuator/health/readiness"))
             .andExpect(status().isOk());
     }
 

@@ -14,19 +14,26 @@ import com.example.ecommerce.cartservice.exception.InvalidCartOperationException
 import com.example.ecommerce.cartservice.repository.CartRepository;
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Service
-@Transactional
 public class CartService {
 
     private final CartRepository cartRepository;
     private final ProductCatalogClient productCatalogClient;
+    private final TransactionOperations transactionOperations;
 
-    public CartService(CartRepository cartRepository, ProductCatalogClient productCatalogClient) {
+    public CartService(
+        CartRepository cartRepository,
+        ProductCatalogClient productCatalogClient,
+        TransactionOperations transactionOperations
+    ) {
         this.cartRepository = cartRepository;
         this.productCatalogClient = productCatalogClient;
+        this.transactionOperations = transactionOperations;
     }
 
     @Transactional(readOnly = true)
@@ -38,18 +45,15 @@ public class CartService {
 
     public CartResponse addItem(Long userId, AddCartItemRequest request) {
         ProductCatalogItem product = productCatalogClient.getProduct(request.productId());
-        Cart cart = cartRepository.findByActiveCartKey(userId)
-            .orElseGet(() -> Cart.createActive(userId));
 
         try {
-            cart.addOrIncrementItem(product.id(), product.name(), product.price(), request.quantity());
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            throw new InvalidCartOperationException(ex.getMessage());
+            return toResponse(addItemInTransaction(userId, request, product));
+        } catch (DataIntegrityViolationException ex) {
+            return toResponse(addItemInTransaction(userId, request, product));
         }
-
-        return toResponse(cartRepository.save(cart));
     }
 
+    @Transactional
     public CartResponse updateItem(Long userId, Long productId, UpdateCartItemRequest request) {
         Cart cart = cartRepository.findByActiveCartKey(userId)
             .orElseThrow(CartItemNotFoundException::new);
@@ -68,6 +72,7 @@ public class CartService {
         return toResponse(cartRepository.save(cart));
     }
 
+    @Transactional
     public void removeItem(Long userId, Long productId) {
         Cart cart = cartRepository.findByActiveCartKey(userId)
             .orElseThrow(CartItemNotFoundException::new);
@@ -85,6 +90,7 @@ public class CartService {
         cartRepository.save(cart);
     }
 
+    @Transactional
     public void clearCart(Long userId) {
         cartRepository.findByActiveCartKey(userId).ifPresent(cart -> {
             try {
@@ -94,6 +100,23 @@ public class CartService {
             }
             cartRepository.save(cart);
         });
+    }
+
+    private Cart addItemInTransaction(Long userId, AddCartItemRequest request, ProductCatalogItem product) {
+        return transactionOperations.execute(status -> {
+            Cart cart = cartRepository.findByActiveCartKey(userId)
+                .orElseGet(() -> Cart.createActive(userId));
+            addOrIncrementItem(cart, product, request.quantity());
+            return cartRepository.saveAndFlush(cart);
+        });
+    }
+
+    private static void addOrIncrementItem(Cart cart, ProductCatalogItem product, int quantity) {
+        try {
+            cart.addOrIncrementItem(product.id(), product.name(), product.price(), quantity);
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            throw new InvalidCartOperationException(ex.getMessage());
+        }
     }
 
     private static boolean containsItem(Cart cart, Long productId) {

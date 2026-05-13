@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -22,12 +23,17 @@ import com.example.ecommerce.cartservice.exception.ProductNotFoundException;
 import com.example.ecommerce.cartservice.repository.CartRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceTests {
@@ -41,8 +47,22 @@ class CartServiceTests {
     @Mock
     private ProductCatalogClient productCatalogClient;
 
-    @InjectMocks
     private CartService cartService;
+
+    @BeforeEach
+    void setUp() {
+        cartService = new CartService(
+            cartRepository,
+            productCatalogClient,
+            new TransactionOperations() {
+                @Override
+                public <T> T execute(TransactionCallback<T> action) {
+                    TransactionStatus status = new SimpleTransactionStatus();
+                    return action.doInTransaction(status);
+                }
+            }
+        );
+    }
 
     @Test
     void getCurrentCartReturnsEmptyCartWhenNoActiveCartExists() {
@@ -83,7 +103,7 @@ class CartServiceTests {
         ProductCatalogItem product = new ProductCatalogItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"));
         when(productCatalogClient.getProduct(PRODUCT_ID)).thenReturn(product);
         when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.empty());
-        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> {
+        when(cartRepository.saveAndFlush(any(Cart.class))).thenAnswer(invocation -> {
             Cart cart = invocation.getArgument(0);
             ReflectionTestUtils.setField(cart, "id", 100L);
             return cart;
@@ -111,7 +131,7 @@ class CartServiceTests {
         ProductCatalogItem product = new ProductCatalogItem(PRODUCT_ID, "New Name", new BigDecimal("12.50"));
         when(productCatalogClient.getProduct(PRODUCT_ID)).thenReturn(product);
         when(cartRepository.findByActiveCartKey(USER_ID)).thenReturn(Optional.of(cart));
-        when(cartRepository.save(cart)).thenReturn(cart);
+        when(cartRepository.saveAndFlush(cart)).thenReturn(cart);
 
         CartResponse response = cartService.addItem(USER_ID, new AddCartItemRequest(PRODUCT_ID, 3));
 
@@ -122,6 +142,30 @@ class CartServiceTests {
             assertThat(item.lineTotal()).isEqualByComparingTo("50.00");
         });
         assertThat(response.subtotal()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void addItemRetriesWhenActiveCartCreationRaces() {
+        Cart existingCart = activeCart(100L);
+        ProductCatalogItem product = new ProductCatalogItem(PRODUCT_ID, "Pour Over", new BigDecimal("19.99"));
+        when(productCatalogClient.getProduct(PRODUCT_ID)).thenReturn(product);
+        when(cartRepository.findByActiveCartKey(USER_ID))
+            .thenReturn(Optional.empty(), Optional.of(existingCart));
+        when(cartRepository.saveAndFlush(any(Cart.class)))
+            .thenThrow(new DataIntegrityViolationException("active cart already exists"))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CartResponse response = cartService.addItem(USER_ID, new AddCartItemRequest(PRODUCT_ID, 2));
+
+        assertThat(response.cartId()).isEqualTo(100L);
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.productId()).isEqualTo(PRODUCT_ID);
+            assertThat(item.quantity()).isEqualTo(2);
+            assertThat(item.lineTotal()).isEqualByComparingTo("39.98");
+        });
+        assertThat(response.subtotal()).isEqualByComparingTo("39.98");
+        verify(cartRepository, times(2)).findByActiveCartKey(USER_ID);
+        verify(cartRepository, times(2)).saveAndFlush(any(Cart.class));
     }
 
     @Test
@@ -275,7 +319,7 @@ class CartServiceTests {
             .isSameAs(exception);
 
         verify(cartRepository, never()).findByActiveCartKey(any());
-        verify(cartRepository, never()).save(any());
+        verify(cartRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -287,7 +331,7 @@ class CartServiceTests {
             .isSameAs(exception);
 
         verify(cartRepository, never()).findByActiveCartKey(any());
-        verify(cartRepository, never()).save(any());
+        verify(cartRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -300,7 +344,7 @@ class CartServiceTests {
             .isInstanceOf(InvalidCartOperationException.class)
             .hasMessage("Quantity must be positive");
 
-        verify(cartRepository, never()).save(any());
+        verify(cartRepository, never()).saveAndFlush(any());
     }
 
     private static Cart activeCart(Long cartId) {
