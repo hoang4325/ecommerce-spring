@@ -5,16 +5,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.ecommerce.orderservice.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -41,6 +39,9 @@ class SecurityConfigTests {
     SecurityConfigTests(MockMvc mockMvc) {
         this.mockMvc = mockMvc;
     }
+
+    @MockitoBean
+    private OrderService orderService;
 
     @Test
     void healthIsPublic() throws Exception {
@@ -81,28 +82,5 @@ class SecurityConfigTests {
                 .header("X-User-Id", "10")
                 .header("X-User-Roles", "ADMIN"))
             .andExpect(status().is(not(403)));
-    }
-
-    @TestConfiguration
-    static class TestControllersConfiguration {
-
-        @Bean
-        TestOrderController testOrderController() {
-            return new TestOrderController();
-        }
-    }
-
-    @RestController
-    static class TestOrderController {
-
-        @GetMapping("/api/orders")
-        String orders() {
-            return "orders";
-        }
-
-        @GetMapping("/api/admin/orders")
-        String adminOrders() {
-            return "admin-orders";
-        }
     }
 }

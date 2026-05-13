@@ -20,6 +20,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -32,6 +33,7 @@ public class GlobalExceptionHandler {
     private static final String UNSUPPORTED_METHOD_MESSAGE = "HTTP method is not supported";
     private static final String INVALID_REQUEST_MESSAGE = "Invalid request";
     private static final String ACCESS_DENIED_MESSAGE = "Access is denied";
+    private static final String RESOURCE_NOT_FOUND_MESSAGE = "Resource not found";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiErrorResponse> handleValidationException(
@@ -100,6 +102,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderNotFoundException.class)
     ResponseEntity<ApiErrorResponse> handleOrderNotFoundException(OrderNotFoundException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, List.of());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ApiErrorResponse> handleNoResourceFoundException(
+        NoResourceFoundException ex,
+        HttpServletRequest request
+    ) {
+        return buildResponse(HttpStatus.NOT_FOUND, RESOURCE_NOT_FOUND_MESSAGE, request, List.of());
     }
 
     @ExceptionHandler({
