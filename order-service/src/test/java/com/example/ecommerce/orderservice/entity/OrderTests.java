@@ -32,6 +32,16 @@ class OrderTests {
     }
 
     @Test
+    void createFromCartRejectsDuplicateProductItems() {
+        assertThatThrownBy(() -> Order.createFromCart(10L, 20L, List.of(
+            OrderItem.create(100L, "Pour Over", new BigDecimal("19.99"), 1),
+            OrderItem.create(100L, "Pour Over", new BigDecimal("19.99"), 2)
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Order item product already exists");
+    }
+
+    @Test
     void orderItemRejectsInvalidQuantityAndPrice() {
         assertThatThrownBy(() -> OrderItem.create(100L, "Pour Over", BigDecimal.ONE, 0))
             .isInstanceOf(IllegalArgumentException.class)

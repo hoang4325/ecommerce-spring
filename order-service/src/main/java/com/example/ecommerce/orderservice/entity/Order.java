@@ -120,6 +120,9 @@ public class Order {
         if (item == null) {
             throw new IllegalArgumentException("Order item must not be null");
         }
+        if (items.stream().anyMatch(existing -> existing.getProductId().equals(item.getProductId()))) {
+            throw new IllegalArgumentException("Order item product already exists");
+        }
         item.attachTo(this);
         this.items.add(item);
     }

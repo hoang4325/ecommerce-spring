@@ -50,7 +50,7 @@ class OrderRepositoryTests {
         cancelled.cancel("Stock failed");
         repository.saveAndFlush(cancelled);
 
-        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotIn(
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
             10L,
             20L,
             List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
@@ -58,11 +58,25 @@ class OrderRepositoryTests {
 
         Order pending = repository.saveAndFlush(sampleOrder(10L, 20L));
 
-        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotIn(
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
             10L,
             20L,
             List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
         )).contains(pending);
+    }
+
+    @Test
+    void findsNewestExistingNonTerminalOrderByUserAndCart() throws InterruptedException {
+        Order olderPending = repository.saveAndFlush(sampleOrder(10L, 20L));
+        Thread.sleep(10);
+        Order newerPending = repository.saveAndFlush(sampleOrder(10L, 20L));
+
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
+            10L,
+            20L,
+            List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
+        )).contains(newerPending);
+        assertThat(newerPending.getCreatedAt()).isAfter(olderPending.getCreatedAt());
     }
 
     @Test
