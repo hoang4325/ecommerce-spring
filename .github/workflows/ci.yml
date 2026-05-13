@@ -44,4 +44,5 @@ jobs:
             api-gateway \
             auth-service \
             product-service \
-            inventory-service
+            inventory-service \
+            cart-service
