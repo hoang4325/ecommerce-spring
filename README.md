@@ -161,13 +161,15 @@ http://localhost:8083/swagger-ui.html
 
 Start PostgreSQL with a `cart_db` database, then run:
 
+Cart Service expects `product-service` to be registered in Eureka when using local run mode.
+
 ```powershell
 $env:SPRING_PROFILES_ACTIVE="local"
 $env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5435/cart_db"
 $env:SPRING_DATASOURCE_USERNAME="ecommerce"
 $env:SPRING_DATASOURCE_PASSWORD="ecommerce"
 $env:EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://localhost:8761/eureka/"
-$env:PRODUCT_SERVICE_BASE_URL="http://localhost:8082"
+$env:PRODUCT_SERVICE_BASE_URL="http://product-service"
 mvn -pl cart-service spring-boot:run
 ```
 
