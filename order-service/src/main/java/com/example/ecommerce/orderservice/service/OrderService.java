@@ -21,7 +21,7 @@ import com.example.ecommerce.orderservice.exception.OrderNotFoundException;
 import com.example.ecommerce.orderservice.repository.OrderRepository;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -204,6 +204,6 @@ public class OrderService {
     }
 
     private static Instant toInstant(LocalDateTime timestamp) {
-        return timestamp == null ? null : timestamp.atZone(ZoneId.systemDefault()).toInstant();
+        return timestamp == null ? null : timestamp.toInstant(ZoneOffset.UTC);
     }
 }

@@ -28,8 +28,11 @@ import com.example.ecommerce.orderservice.exception.InvalidOrderOperationExcepti
 import com.example.ecommerce.orderservice.exception.OrderNotFoundException;
 import com.example.ecommerce.orderservice.repository.OrderRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.TimeZone;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -200,6 +203,26 @@ class OrderServiceTests {
         Page<OrderResponse> response = orderService.findAdminOrders(null, pageable);
 
         assertThat(response.getContent()).extracting(OrderResponse::orderId).containsExactly(ORDER_ID);
+    }
+
+    @Test
+    void responseTimestampsTreatEntityTimestampsAsUtc() {
+        Order order = assignId(sampleOrder(), ORDER_ID);
+        ReflectionTestUtils.setField(order, "createdAt", LocalDateTime.parse("2026-05-13T12:00:00"));
+        ReflectionTestUtils.setField(order, "updatedAt", LocalDateTime.parse("2026-05-13T12:05:00"));
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        TimeZone originalTimeZone = TimeZone.getDefault();
+
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+
+            OrderResponse response = orderService.findAdminOrder(ORDER_ID);
+
+            assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-05-13T12:00:00Z"));
+            assertThat(response.updatedAt()).isEqualTo(Instant.parse("2026-05-13T12:05:00Z"));
+        } finally {
+            TimeZone.setDefault(originalTimeZone);
+        }
     }
 
     @Test
