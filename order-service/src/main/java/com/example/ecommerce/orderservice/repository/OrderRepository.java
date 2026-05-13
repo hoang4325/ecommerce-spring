@@ -16,7 +16,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Page<Order> findByStatus(OrderStatus status, Pageable pageable);
 
-    Optional<Order> findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
+    Optional<Order> findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDescIdDesc(
         Long userId,
         Long sourceCartId,
         Collection<OrderStatus> statuses

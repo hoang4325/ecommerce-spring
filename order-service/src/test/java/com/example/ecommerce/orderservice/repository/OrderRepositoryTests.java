@@ -6,11 +6,13 @@ import com.example.ecommerce.orderservice.entity.Order;
 import com.example.ecommerce.orderservice.entity.OrderItem;
 import com.example.ecommerce.orderservice.entity.OrderStatus;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,6 +29,9 @@ class OrderRepositoryTests {
 
     @Autowired
     private OrderRepository repository;
+
+    @Autowired
+    private TestEntityManager entityManager;
 
     @Test
     void persistsOrderWithItems() {
@@ -50,7 +55,7 @@ class OrderRepositoryTests {
         cancelled.cancel("Stock failed");
         repository.saveAndFlush(cancelled);
 
-        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDescIdDesc(
             10L,
             20L,
             List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
@@ -58,7 +63,7 @@ class OrderRepositoryTests {
 
         Order pending = repository.saveAndFlush(sampleOrder(10L, 20L));
 
-        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDescIdDesc(
             10L,
             20L,
             List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
@@ -66,29 +71,48 @@ class OrderRepositoryTests {
     }
 
     @Test
-    void findsNewestExistingNonTerminalOrderByUserAndCart() throws InterruptedException {
+    void findsNewestExistingNonTerminalOrderByUserAndCart() {
         Order olderPending = repository.saveAndFlush(sampleOrder(10L, 20L));
-        Thread.sleep(10);
         Order newerPending = repository.saveAndFlush(sampleOrder(10L, 20L));
+        setOrderTimestamps(olderPending, LocalDateTime.of(2026, 5, 13, 15, 29));
+        setOrderTimestamps(newerPending, LocalDateTime.of(2026, 5, 13, 15, 30));
+        entityManager.clear();
 
-        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDesc(
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDescIdDesc(
             10L,
             20L,
             List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
-        )).contains(newerPending);
-        assertThat(newerPending.getCreatedAt()).isAfter(olderPending.getCreatedAt());
+        )).map(Order::getId).contains(newerPending.getId());
     }
 
     @Test
-    void filtersByStatusNewestFirst() throws InterruptedException {
+    void findsNewestExistingNonTerminalOrderByUserAndCartBreaksCreatedAtTiesById() {
+        Order lowerIdPending = repository.saveAndFlush(sampleOrder(10L, 20L));
+        Order higherIdPending = repository.saveAndFlush(sampleOrder(10L, 20L));
+        LocalDateTime sameTimestamp = LocalDateTime.of(2026, 5, 13, 15, 30);
+        setOrderTimestamps(lowerIdPending, sameTimestamp);
+        setOrderTimestamps(higherIdPending, sameTimestamp);
+        entityManager.clear();
+
+        assertThat(repository.findFirstByUserIdAndSourceCartIdAndStatusNotInOrderByCreatedAtDescIdDesc(
+            10L,
+            20L,
+            List.of(OrderStatus.CANCELLED, OrderStatus.COMPLETED)
+        )).map(Order::getId).contains(higherIdPending.getId());
+    }
+
+    @Test
+    void filtersByStatusNewestFirst() {
         repository.saveAndFlush(sampleOrder(10L, 20L));
         Order olderReserved = sampleOrder(11L, 21L);
         olderReserved.markStockReserved();
         repository.saveAndFlush(olderReserved);
-        Thread.sleep(10);
         Order newerReserved = sampleOrder(12L, 22L);
         newerReserved.markStockReserved();
         repository.saveAndFlush(newerReserved);
+        setOrderTimestamps(olderReserved, LocalDateTime.of(2026, 5, 13, 15, 29));
+        setOrderTimestamps(newerReserved, LocalDateTime.of(2026, 5, 13, 15, 30));
+        entityManager.clear();
 
         Page<Order> result = repository.findByStatus(
             OrderStatus.STOCK_RESERVED,
@@ -105,5 +129,14 @@ class OrderRepositoryTests {
         return Order.createFromCart(userId, sourceCartId, List.of(
             OrderItem.create(100L, "Pour Over", new BigDecimal("19.99"), 1)
         ));
+    }
+
+    private void setOrderTimestamps(Order order, LocalDateTime timestamp) {
+        entityManager.getEntityManager()
+            .createNativeQuery("update orders set created_at = ?, updated_at = ? where id = ?")
+            .setParameter(1, timestamp)
+            .setParameter(2, timestamp)
+            .setParameter(3, order.getId())
+            .executeUpdate();
     }
 }
