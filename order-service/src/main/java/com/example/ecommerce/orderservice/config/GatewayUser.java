@@ -9,8 +9,9 @@ public record GatewayUser(Long id, String email, List<String> roles) {
             ? List.of()
             : roles.stream()
                 .map(role -> role == null ? "" : role.trim())
-                .filter(role -> !role.isBlank())
                 .map(role -> role.startsWith("ROLE_") ? role.substring("ROLE_".length()) : role)
+                .map(String::trim)
+                .filter(role -> !role.isBlank())
                 .distinct()
                 .toList();
     }
