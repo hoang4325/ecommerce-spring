@@ -20,18 +20,30 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Service
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+    private final TransactionOperations transactionOperations;
 
-    public PaymentService(PaymentRepository paymentRepository) {
+    public PaymentService(PaymentRepository paymentRepository, TransactionOperations transactionOperations) {
         this.paymentRepository = paymentRepository;
+        this.transactionOperations = transactionOperations;
     }
 
-    @Transactional
     public PaymentResponse create(GatewayUser user, CreatePaymentRequest request) {
+        try {
+            return transactionOperations.execute(status -> createInTransaction(user, request));
+        } catch (DataIntegrityViolationException exception) {
+            return paymentRepository.findByOrderId(request.orderId())
+                .map(savedPayment -> toCurrentUserResponse(savedPayment, user.id()))
+                .orElseThrow(() -> exception);
+        }
+    }
+
+    private PaymentResponse createInTransaction(GatewayUser user, CreatePaymentRequest request) {
         Optional<Payment> existing = paymentRepository.findByOrderId(request.orderId());
         if (existing.isPresent()) {
             return toCurrentUserResponse(existing.get(), user.id());
@@ -46,13 +58,7 @@ public class PaymentService {
         } else if (result == SimulatePaymentResult.FAILED) {
             payment.markFailed("Payment failed");
         }
-        try {
-            return toResponse(paymentRepository.save(payment));
-        } catch (DataIntegrityViolationException exception) {
-            return paymentRepository.findByOrderId(request.orderId())
-                .map(savedPayment -> toCurrentUserResponse(savedPayment, user.id()))
-                .orElseThrow(() -> exception);
-        }
+        return toResponse(paymentRepository.saveAndFlush(payment));
     }
 
     @Transactional(readOnly = true)
