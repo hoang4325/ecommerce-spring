@@ -9,6 +9,7 @@ import com.example.ecommerce.paymentservice.entity.PaymentStatus;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.TestPropertySource;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestPropertySource(properties = {
     "spring.datasource.url=jdbc:h2:mem:payment_repository;MODE=PostgreSQL;DATABASE_TO_UPPER=false",
     "spring.jpa.hibernate.ddl-auto=create-drop"
