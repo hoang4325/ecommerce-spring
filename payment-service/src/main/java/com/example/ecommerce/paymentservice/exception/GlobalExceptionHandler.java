@@ -15,8 +15,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingPathVariableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -28,6 +31,7 @@ public class GlobalExceptionHandler {
     private static final String RESOURCE_NOT_FOUND_MESSAGE = "Resource not found";
     private static final String UNSUPPORTED_CONTENT_TYPE_MESSAGE = "Content type is not supported";
     private static final String UNSUPPORTED_METHOD_MESSAGE = "HTTP method is not supported";
+    private static final String INVALID_REQUEST_MESSAGE = "Invalid request";
     private static final String UNEXPECTED_SERVER_ERROR_MESSAGE = "Unexpected server error";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -55,6 +59,15 @@ public class GlobalExceptionHandler {
         HttpServletRequest request
     ) {
         return buildResponse(HttpStatus.BAD_REQUEST, MALFORMED_REQUEST_BODY_MESSAGE, request, List.of());
+    }
+
+    @ExceptionHandler({
+        MissingPathVariableException.class,
+        MissingServletRequestParameterException.class,
+        MethodArgumentTypeMismatchException.class
+    })
+    ResponseEntity<ApiErrorResponse> handleBadRequestException(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, INVALID_REQUEST_MESSAGE, request, List.of());
     }
 
     @ExceptionHandler(MissingUserIdentityException.class)
