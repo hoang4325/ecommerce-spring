@@ -75,6 +75,24 @@ class PaymentServiceTests {
     }
 
     @Test
+    void createPaymentDefaultsToPendingWhenSimulationOmitted() {
+        CreatePaymentRequest request = new CreatePaymentRequest(
+            ORDER_ID,
+            new BigDecimal("99.98"),
+            PaymentMethod.CARD,
+            null
+        );
+        when(paymentRepository.findByOrderId(ORDER_ID)).thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> assignId(invocation.getArgument(0), PAYMENT_ID));
+
+        PaymentResponse response = paymentService.create(user(), request);
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.PENDING);
+        verify(paymentRepository).save(any(Payment.class));
+    }
+
+    @Test
     void createPaymentReturnsExistingPaymentForSameUserAndOrder() {
         Payment existing = assignId(payment(ORDER_ID, USER_ID), PAYMENT_ID);
         when(paymentRepository.findByOrderId(ORDER_ID)).thenReturn(Optional.of(existing));
@@ -124,6 +142,14 @@ class PaymentServiceTests {
     }
 
     @Test
+    void findCurrentUserPaymentByOrderThrowsWhenMissing() {
+        when(paymentRepository.findByOrderIdAndUserId(ORDER_ID, USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.findCurrentUserPaymentByOrder(USER_ID, ORDER_ID))
+            .isInstanceOf(PaymentNotFoundException.class);
+    }
+
+    @Test
     void findAdminPaymentsUsesStatusFilterWhenPresent() {
         Pageable pageable = PageRequest.of(0, 20);
         when(paymentRepository.findByStatus(PaymentStatus.SUCCESS, pageable)).thenReturn(new PageImpl<>(List.of()));
@@ -170,6 +196,18 @@ class PaymentServiceTests {
 
         assertThat(response.status()).isEqualTo(PaymentStatus.FAILED);
         assertThat(response.failureReason()).isEqualTo("Declined");
+    }
+
+    @Test
+    void adminStatusUpdateThrowsWhenPaymentMissing() {
+        when(paymentRepository.findById(PAYMENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.updateStatusAsAdmin(
+            PAYMENT_ID,
+            new UpdatePaymentStatusRequest(PaymentStatus.SUCCESS, null)
+        ))
+            .isInstanceOf(PaymentNotFoundException.class);
+        verify(paymentRepository, never()).save(any(Payment.class));
     }
 
     @Test
