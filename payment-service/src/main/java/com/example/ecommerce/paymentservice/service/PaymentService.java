@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -33,11 +34,7 @@ public class PaymentService {
     public PaymentResponse create(GatewayUser user, CreatePaymentRequest request) {
         Optional<Payment> existing = paymentRepository.findByOrderId(request.orderId());
         if (existing.isPresent()) {
-            Payment payment = existing.get();
-            if (!payment.getUserId().equals(user.id())) {
-                throw new DuplicateOrderPaymentException();
-            }
-            return toResponse(payment);
+            return toCurrentUserResponse(existing.get(), user.id());
         }
 
         Payment payment = Payment.create(request.orderId(), user.id(), request.amount(), request.method());
@@ -49,7 +46,13 @@ public class PaymentService {
         } else if (result == SimulatePaymentResult.FAILED) {
             payment.markFailed("Payment failed");
         }
-        return toResponse(paymentRepository.save(payment));
+        try {
+            return toResponse(paymentRepository.save(payment));
+        } catch (DataIntegrityViolationException exception) {
+            return paymentRepository.findByOrderId(request.orderId())
+                .map(savedPayment -> toCurrentUserResponse(savedPayment, user.id()))
+                .orElseThrow(() -> exception);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -115,6 +118,13 @@ public class PaymentService {
             toInstant(payment.getCreatedAt()),
             toInstant(payment.getUpdatedAt())
         );
+    }
+
+    private PaymentResponse toCurrentUserResponse(Payment payment, Long userId) {
+        if (!payment.getUserId().equals(userId)) {
+            throw new DuplicateOrderPaymentException();
+        }
+        return toResponse(payment);
     }
 
     private static Instant toInstant(LocalDateTime timestamp) {

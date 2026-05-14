@@ -30,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -128,6 +129,46 @@ class PaymentServiceTests {
 
         assertThatThrownBy(() -> paymentService.create(user(), request(SimulatePaymentResult.SUCCESS)))
             .isInstanceOf(DuplicateOrderPaymentException.class);
+        verify(paymentRepository, never()).save(any(Payment.class));
+    }
+
+    @Test
+    void createPaymentReturnsExistingPaymentWhenConcurrentSameUserInsertWins() {
+        Payment existing = assignId(payment(ORDER_ID, USER_ID), PAYMENT_ID);
+        when(paymentRepository.findByOrderId(ORDER_ID))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(existing));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate order payment"));
+
+        PaymentResponse response = paymentService.create(user(), request(SimulatePaymentResult.SUCCESS));
+
+        assertThat(response.paymentId()).isEqualTo(PAYMENT_ID);
+    }
+
+    @Test
+    void createPaymentRejectsConcurrentDifferentUserInsert() {
+        Payment existing = assignId(payment(ORDER_ID, 11L), PAYMENT_ID);
+        when(paymentRepository.findByOrderId(ORDER_ID))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(existing));
+        when(paymentRepository.save(any(Payment.class)))
+            .thenThrow(new DataIntegrityViolationException("duplicate order payment"));
+
+        assertThatThrownBy(() -> paymentService.create(user(), request(SimulatePaymentResult.SUCCESS)))
+            .isInstanceOf(DuplicateOrderPaymentException.class);
+    }
+
+    @Test
+    void createPaymentRethrowsIntegrityViolationWhenRaceWinnerCannotBeFound() {
+        DataIntegrityViolationException violation = new DataIntegrityViolationException("duplicate order payment");
+        when(paymentRepository.findByOrderId(ORDER_ID))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class))).thenThrow(violation);
+
+        assertThatThrownBy(() -> paymentService.create(user(), request(SimulatePaymentResult.SUCCESS)))
+            .isSameAs(violation);
     }
 
     @Test
@@ -254,6 +295,7 @@ class PaymentServiceTests {
         ))
             .isInstanceOf(InvalidPaymentOperationException.class)
             .hasMessage("Only SUCCESS or FAILED is supported");
+        verify(paymentRepository, never()).save(any(Payment.class));
     }
 
     @Test
