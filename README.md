@@ -4,7 +4,7 @@ Java Spring Boot microservices e-commerce system.
 
 ## Current Milestone
 
-The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, `product-service`, `inventory-service`, `cart-service`, and `order-service`.
+The repository currently contains the Maven parent project, `eureka-server`, `api-gateway`, `auth-service`, `product-service`, `inventory-service`, `cart-service`, `order-service`, and `payment-service`.
 
 ## Stack
 
@@ -37,6 +37,7 @@ mvn -pl product-service -am clean package
 mvn -pl inventory-service -am clean package
 mvn -pl cart-service -am clean package
 mvn -pl order-service -am clean package
+mvn -pl payment-service -am clean package
 ```
 
 ## Test
@@ -49,6 +50,7 @@ mvn -pl product-service -am test
 mvn -pl inventory-service -am test
 mvn -pl cart-service -am test
 mvn -pl order-service -am test
+mvn -pl payment-service -am test
 ```
 
 ## Run Eureka Locally
@@ -216,18 +218,45 @@ Swagger UI:
 http://localhost:8085/swagger-ui.html
 ```
 
+## Run Payment Service Locally
+
+Start PostgreSQL with a `payment_db` database on port `5437`, then run:
+
+Payment Service expects Eureka to be running when using local run mode.
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE="local"
+$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5437/payment_db"
+$env:SPRING_DATASOURCE_USERNAME="ecommerce"
+$env:SPRING_DATASOURCE_PASSWORD="ecommerce"
+$env:EUREKA_CLIENT_SERVICEURL_DEFAULTZONE="http://localhost:8761/eureka/"
+mvn -pl payment-service spring-boot:run
+```
+
+Payment Service health endpoint:
+
+```text
+http://localhost:8086/actuator/health
+```
+
+Swagger UI:
+
+```text
+http://localhost:8086/swagger-ui.html
+```
+
 ## Run with Docker Compose
 
 ```powershell
-"eureka-server","api-gateway","auth-service","product-service","inventory-service","cart-service","order-service" | ForEach-Object { docker compose build $_ }
-docker compose up postgres product-postgres inventory-postgres cart-postgres order-postgres eureka-server auth-service product-service inventory-service cart-service order-service api-gateway
+"eureka-server","api-gateway","auth-service","product-service","inventory-service","cart-service","order-service","payment-service" | ForEach-Object { docker compose build $_ }
+docker compose up postgres product-postgres inventory-postgres cart-postgres order-postgres payment-postgres eureka-server auth-service product-service inventory-service cart-service order-service payment-service api-gateway
 ```
 
-Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, the Product Service is published on `http://localhost:8082`, the Inventory Service is published on `http://localhost:8083`, the Cart Service is published on `http://localhost:8084`, and the Order Service is published on `http://localhost:8085`.
+Eureka is published on `http://localhost:8761`, the API Gateway is published on `http://localhost:8080`, the Auth Service is published on `http://localhost:8081`, the Product Service is published on `http://localhost:8082`, the Inventory Service is published on `http://localhost:8083`, the Cart Service is published on `http://localhost:8084`, the Order Service is published on `http://localhost:8085`, and the Payment Service is published on `http://localhost:8086`.
 
-Auth PostgreSQL is bound to `127.0.0.1:5432`, Product PostgreSQL is bound to `127.0.0.1:5433`, Inventory PostgreSQL is bound to `127.0.0.1:5434`, Cart PostgreSQL is bound to `127.0.0.1:5435`, and Order PostgreSQL is bound to `127.0.0.1:5436` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
+Auth PostgreSQL is bound to `127.0.0.1:5432`, Product PostgreSQL is bound to `127.0.0.1:5433`, Inventory PostgreSQL is bound to `127.0.0.1:5434`, Cart PostgreSQL is bound to `127.0.0.1:5435`, Order PostgreSQL is bound to `127.0.0.1:5436`, and Payment PostgreSQL is bound to `127.0.0.1:5437` for local development. The bundled `ecommerce` database credentials, JWT secret, and database port exposure are for local development only.
 
-Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE`, `PRODUCT-SERVICE`, `INVENTORY-SERVICE`, `CART-SERVICE`, and `ORDER-SERVICE` appear in the Eureka dashboard.
+Before sending gateway requests, wait until the Compose containers report healthy and `AUTH-SERVICE`, `PRODUCT-SERVICE`, `INVENTORY-SERVICE`, `CART-SERVICE`, `ORDER-SERVICE`, and `PAYMENT-SERVICE` appear in the Eureka dashboard.
 
 Register through the gateway:
 
@@ -354,4 +383,34 @@ curl.exe -X PATCH http://localhost:8080/api/admin/orders/1000/status `
   -H "Authorization: Bearer <admin-token>" `
   -H "Content-Type: application/json" `
   -d '{"status":"CANCELLED","reason":"Customer requested"}'
+```
+
+Payment requests through the gateway require `Authorization: Bearer <token>`.
+
+```powershell
+curl.exe -X POST http://localhost:8080/api/payments `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d '{"orderId":1000,"amount":49.99,"method":"CARD"}'
+
+curl.exe http://localhost:8080/api/payments `
+  -H "Authorization: Bearer <token>"
+
+curl.exe http://localhost:8080/api/payments/5000 `
+  -H "Authorization: Bearer <token>"
+
+curl.exe http://localhost:8080/api/payments/by-order/1000 `
+  -H "Authorization: Bearer <token>"
+```
+
+Admin payment requests require `Authorization: Bearer <admin-token>`.
+
+```powershell
+curl.exe http://localhost:8080/api/admin/payments `
+  -H "Authorization: Bearer <admin-token>"
+
+curl.exe -X PATCH http://localhost:8080/api/admin/payments/5000/status `
+  -H "Authorization: Bearer <admin-token>" `
+  -H "Content-Type: application/json" `
+  -d '{"status":"SUCCESS","failureReason":null}'
 ```

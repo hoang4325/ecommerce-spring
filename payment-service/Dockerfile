@@ -10,15 +10,15 @@ COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY cart-service/pom.xml cart-service/pom.xml
 COPY order-service/pom.xml order-service/pom.xml
 COPY payment-service/pom.xml payment-service/pom.xml
-COPY order-service/src order-service/src
+COPY payment-service/src payment-service/src
 
-RUN mvn -pl order-service -am package -DskipTests
+RUN mvn -pl payment-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY --from=build /workspace/order-service/target/*.jar app.jar
+COPY --from=build /workspace/payment-service/target/*.jar app.jar
 
-EXPOSE 8085
+EXPOSE 8086
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

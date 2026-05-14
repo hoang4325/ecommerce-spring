@@ -9,6 +9,7 @@ COPY product-service/pom.xml product-service/pom.xml
 COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY cart-service/pom.xml cart-service/pom.xml
 COPY order-service/pom.xml order-service/pom.xml
+COPY payment-service/pom.xml payment-service/pom.xml
 COPY product-service/src product-service/src
 
 RUN mvn -pl product-service -am package -DskipTests

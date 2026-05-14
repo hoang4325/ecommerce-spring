@@ -46,3 +46,4 @@ jobs:
           docker compose build inventory-service
           docker compose build cart-service
           docker compose build order-service
+          docker compose build payment-service

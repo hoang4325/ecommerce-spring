@@ -10,6 +10,7 @@ COPY product-service/pom.xml product-service/pom.xml
 COPY inventory-service/pom.xml inventory-service/pom.xml
 COPY cart-service/pom.xml cart-service/pom.xml
 COPY order-service/pom.xml order-service/pom.xml
+COPY payment-service/pom.xml payment-service/pom.xml
 COPY api-gateway/src api-gateway/src
 
 RUN mvn -pl api-gateway -am package -DskipTests
