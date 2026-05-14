@@ -53,6 +53,10 @@ spring:
               uri: lb://order-service
               predicates:
                 - Path=/api/admin/orders/**
+            - id: payment-service-admin
+              uri: lb://payment-service
+              predicates:
+                - Path=/api/admin/payments/**
             - id: payment-service
               uri: lb://payment-service
               predicates:
