@@ -93,6 +93,24 @@ class PaymentServiceTests {
     }
 
     @Test
+    void createPaymentKeepsPendingWhenSimulationPending() {
+        CreatePaymentRequest request = new CreatePaymentRequest(
+            ORDER_ID,
+            new BigDecimal("99.98"),
+            PaymentMethod.CARD,
+            SimulatePaymentResult.PENDING
+        );
+        when(paymentRepository.findByOrderId(ORDER_ID)).thenReturn(Optional.empty());
+        when(paymentRepository.save(any(Payment.class)))
+            .thenAnswer(invocation -> assignId(invocation.getArgument(0), PAYMENT_ID));
+
+        PaymentResponse response = paymentService.create(user(), request);
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.PENDING);
+        verify(paymentRepository).save(any(Payment.class));
+    }
+
+    @Test
     void createPaymentReturnsExistingPaymentForSameUserAndOrder() {
         Payment existing = assignId(payment(ORDER_ID, USER_ID), PAYMENT_ID);
         when(paymentRepository.findByOrderId(ORDER_ID)).thenReturn(Optional.of(existing));
