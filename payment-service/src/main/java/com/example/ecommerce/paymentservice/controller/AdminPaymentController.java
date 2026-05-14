@@ -8,6 +8,8 @@ import com.example.ecommerce.paymentservice.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,7 +31,7 @@ public class AdminPaymentController {
     @GetMapping
     public Page<PaymentResponse> listPayments(
         @RequestParam(required = false) PaymentStatus status,
-        Pageable pageable
+        @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return paymentService.findAdminPayments(status, pageable);
     }

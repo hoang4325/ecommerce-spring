@@ -8,6 +8,8 @@ import com.example.ecommerce.paymentservice.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,7 +40,10 @@ public class PaymentController {
     }
 
     @GetMapping
-    public Page<PaymentResponse> listPayments(Authentication authentication, Pageable pageable) {
+    public Page<PaymentResponse> listPayments(
+        Authentication authentication,
+        @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
         return paymentService.findCurrentUserPayments(currentUser(authentication).id(), pageable);
     }
 

@@ -1,7 +1,9 @@
 package com.example.ecommerce.paymentservice.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.ecommerce.paymentservice.dto.PaymentResponse;
+import com.example.ecommerce.paymentservice.dto.UpdatePaymentStatusRequest;
 import com.example.ecommerce.paymentservice.entity.PaymentMethod;
 import com.example.ecommerce.paymentservice.entity.PaymentStatus;
 import com.example.ecommerce.paymentservice.exception.InvalidPaymentOperationException;
@@ -18,11 +21,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -67,6 +73,21 @@ class AdminPaymentControllerTests {
     }
 
     @Test
+    void adminListDefaultsToNewestFirst() throws Exception {
+        when(paymentService.findAdminPayments(isNull(), any()))
+            .thenReturn(new PageImpl<>(List.of(paymentResponse(PaymentStatus.SUCCESS))));
+
+        mockMvc.perform(get("/api/admin/payments")
+                .header("X-User-Id", "1")
+                .header("X-User-Roles", "ADMIN"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(paymentService).findAdminPayments(isNull(), pageableCaptor.capture());
+        assertCreatedAtDescending(pageableCaptor.getValue());
+    }
+
+    @Test
     void adminDetailReturnsPayment() throws Exception {
         when(paymentService.findAdminPayment(2000L)).thenReturn(paymentResponse(PaymentStatus.SUCCESS));
 
@@ -94,6 +115,12 @@ class AdminPaymentControllerTests {
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("FAILED"));
+
+        ArgumentCaptor<UpdatePaymentStatusRequest> requestCaptor =
+            ArgumentCaptor.forClass(UpdatePaymentStatusRequest.class);
+        verify(paymentService).updateStatusAsAdmin(eq(2000L), requestCaptor.capture());
+        assertThat(requestCaptor.getValue())
+            .isEqualTo(new UpdatePaymentStatusRequest(PaymentStatus.FAILED, "Processor declined"));
     }
 
     @Test
@@ -112,6 +139,12 @@ class AdminPaymentControllerTests {
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("SUCCESS"));
+
+        ArgumentCaptor<UpdatePaymentStatusRequest> requestCaptor =
+            ArgumentCaptor.forClass(UpdatePaymentStatusRequest.class);
+        verify(paymentService).updateStatusAsAdmin(eq(2000L), requestCaptor.capture());
+        assertThat(requestCaptor.getValue())
+            .isEqualTo(new UpdatePaymentStatusRequest(PaymentStatus.SUCCESS, null));
     }
 
     @Test
@@ -169,5 +202,11 @@ class AdminPaymentControllerTests {
             now,
             now
         );
+    }
+
+    private static void assertCreatedAtDescending(Pageable pageable) {
+        Sort.Order order = pageable.getSort().getOrderFor("createdAt");
+        assertThat(order).isNotNull();
+        assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
     }
 }

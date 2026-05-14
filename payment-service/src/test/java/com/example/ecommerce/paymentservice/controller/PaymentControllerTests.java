@@ -1,7 +1,9 @@
 package com.example.ecommerce.paymentservice.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -9,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.ecommerce.paymentservice.config.GatewayUser;
 import com.example.ecommerce.paymentservice.dto.CreatePaymentRequest;
 import com.example.ecommerce.paymentservice.dto.PaymentResponse;
 import com.example.ecommerce.paymentservice.dto.SimulatePaymentResult;
@@ -21,11 +24,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -75,6 +81,12 @@ class PaymentControllerTests {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("SUCCESS"));
+
+        ArgumentCaptor<GatewayUser> userCaptor = ArgumentCaptor.forClass(GatewayUser.class);
+        ArgumentCaptor<CreatePaymentRequest> requestCaptor = ArgumentCaptor.forClass(CreatePaymentRequest.class);
+        verify(paymentService).create(userCaptor.capture(), requestCaptor.capture());
+        assertThat(userCaptor.getValue()).isEqualTo(new GatewayUser(10L, "user@example.com", List.of("USER")));
+        assertThat(requestCaptor.getValue()).isEqualTo(request);
     }
 
     @Test
@@ -88,6 +100,21 @@ class PaymentControllerTests {
                 .header("X-User-Roles", "USER"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].paymentId").value(2000));
+    }
+
+    @Test
+    void listPaymentsDefaultsToNewestFirst() throws Exception {
+        when(paymentService.findCurrentUserPayments(eq(10L), any()))
+            .thenReturn(new PageImpl<>(List.of(paymentResponse(PaymentStatus.SUCCESS))));
+
+        mockMvc.perform(get("/api/payments")
+                .header("X-User-Id", "10")
+                .header("X-User-Roles", "USER"))
+            .andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(paymentService).findCurrentUserPayments(eq(10L), pageableCaptor.capture());
+        assertCreatedAtDescending(pageableCaptor.getValue());
     }
 
     @Test
@@ -190,5 +217,11 @@ class PaymentControllerTests {
             now,
             now
         );
+    }
+
+    private static void assertCreatedAtDescending(Pageable pageable) {
+        Sort.Order order = pageable.getSort().getOrderFor("createdAt");
+        assertThat(order).isNotNull();
+        assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
     }
 }
