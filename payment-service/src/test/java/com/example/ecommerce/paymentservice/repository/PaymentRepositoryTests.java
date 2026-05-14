@@ -52,6 +52,20 @@ class PaymentRepositoryTests {
     }
 
     @Test
+    void findsByUserId() {
+        repository.saveAndFlush(samplePayment(1000L, 10L));
+        repository.saveAndFlush(samplePayment(1001L, 10L));
+        repository.saveAndFlush(samplePayment(1002L, 11L));
+
+        Page<Payment> result = repository.findByUserId(
+            10L,
+            PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
+        assertThat(result.getContent()).extracting(Payment::getUserId).containsOnly(10L);
+    }
+
+    @Test
     void filtersByStatus() {
         Payment pending = samplePayment(1000L, 10L);
         Payment success = samplePayment(1001L, 11L);

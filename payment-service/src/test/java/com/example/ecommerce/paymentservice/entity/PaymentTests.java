@@ -58,6 +58,21 @@ class PaymentTests {
     }
 
     @Test
+    void createRejectsRequiredFields() {
+        assertThatThrownBy(() -> Payment.create(null, 10L, new BigDecimal("99.98"), PaymentMethod.CARD))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Order id is required");
+
+        assertThatThrownBy(() -> Payment.create(1000L, null, new BigDecimal("99.98"), PaymentMethod.CARD))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("User id is required");
+
+        assertThatThrownBy(() -> Payment.create(1000L, 10L, new BigDecimal("99.98"), null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Payment method is required");
+    }
+
+    @Test
     void terminalPaymentCannotBeChanged() {
         Payment payment = Payment.create(1000L, 10L, new BigDecimal("99.98"), PaymentMethod.CARD);
         payment.markSuccess();
