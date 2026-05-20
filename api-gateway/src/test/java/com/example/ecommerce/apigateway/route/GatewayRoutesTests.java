@@ -49,6 +49,7 @@ class GatewayRoutesTests {
                 "order-service-admin",
                 "payment-service",
                 "payment-service-admin",
+                "notification-service-admin",
                 "notification-service"
             );
 
@@ -56,6 +57,10 @@ class GatewayRoutesTests {
             .contains("/api/payments/**");
         assertThat(pathPredicates(routesById.get("payment-service-admin")))
             .contains("/api/admin/payments/**");
+        assertThat(pathPredicates(routesById.get("notification-service-admin")))
+            .contains("/api/admin/notifications/**");
+        assertThat(pathPredicates(routesById.get("notification-service")))
+            .contains("/api/notifications/**");
     }
 
     private List<String> pathPredicates(RouteDefinition routeDefinition) {
