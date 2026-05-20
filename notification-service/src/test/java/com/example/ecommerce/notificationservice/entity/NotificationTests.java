@@ -3,6 +3,9 @@ package com.example.ecommerce.notificationservice.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.TimeZone;
 import org.junit.jupiter.api.Test;
 
 class NotificationTests {
@@ -60,6 +63,31 @@ class NotificationTests {
         );
 
         assertThat(defaultReason.getFailureReason()).isEqualTo("Notification failed");
+    }
+
+    @Test
+    void prePersistStoresCreatedAtInUtc() {
+        TimeZone original = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+            Notification notification = Notification.sentEmail(
+                10L,
+                1000L,
+                2000L,
+                NotificationType.ORDER_COMPLETED,
+                "customer@example.com",
+                "Order completed",
+                "Your order is complete"
+            );
+            LocalDateTime beforeUtc = LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1);
+
+            notification.prePersist();
+
+            LocalDateTime afterUtc = LocalDateTime.now(ZoneOffset.UTC).plusSeconds(1);
+            assertThat(notification.getCreatedAt()).isBetween(beforeUtc, afterUtc);
+        } finally {
+            TimeZone.setDefault(original);
+        }
     }
 
     @Test
