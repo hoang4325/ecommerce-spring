@@ -7,7 +7,6 @@ import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -56,7 +55,7 @@ class SecurityConfig {
                     "/swagger-ui.html",
                     "/swagger-ui/**"
                 ).permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/internal/notifications").hasRole("INTERNAL")
+                .requestMatchers("/api/internal/notifications").hasRole("INTERNAL")
                 .requestMatchers("/api/admin/notifications/**", "/api/admin/notifications").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .addFilterBefore(internalTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
